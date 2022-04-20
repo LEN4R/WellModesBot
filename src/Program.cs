@@ -16,6 +16,7 @@ namespace WellModesBot
         private static string token = "5348869621:AAFeOl55384vMInbTORGsZwo9YVn-NoEv9w"; // token telegram
         private static TelegramBotClient client;
         private static List<string> _columnNames = new List<string>();
+        private static List<string> _columnMetrics = new List<string>();
         private static List<FieldInfo> _allFields = new List<FieldInfo>();
         private static Dictionary<string, List<FieldInfo>> _fields = new Dictionary<string, List<FieldInfo>>();
 
@@ -82,8 +83,7 @@ namespace WellModesBot
 
         private static async Task SendMessage(Telegram.Bot.Types.Message msg, string message)
         {
-            await client.SendTextMessageAsync(chatId: msg.Chat.Id, text: message,
-                                              replyToMessageId: msg.MessageId);
+            await client.SendTextMessageAsync(chatId: msg.Chat.Id, text: message, replyToMessageId: msg.MessageId);
         }
 
         private static void PrintFieldDataByColumnIndexes(FieldInfo field, StringBuilder message, int[] indexes)
@@ -91,7 +91,7 @@ namespace WellModesBot
             var query = _columnNames
                 .Select((x, i) =>
                 {
-                    return (key: x, value: field.Data[i]);
+                    return (key: x, value: field.Data[i], metrics: _columnMetrics[i]);
                 })
                 .Where(x =>
                 {
@@ -100,7 +100,7 @@ namespace WellModesBot
 
             foreach (var index in indexes)
             {
-                message.AppendLine($"{query[index].key}: {query[index].value}");
+                message.AppendLine($"{query[index].key}: {query[index].value} {query[index].metrics}");
             }
         }
 
@@ -115,14 +115,16 @@ namespace WellModesBot
 
                 var totalRows = myWorksheet.Dimension.End.Row;
                 var totalColumns = myWorksheet.Dimension.End.Column;
-
+                var metrics = myWorksheet.Dimension.End.Column;
 
                 var row = myWorksheet.Row(1);
 
                 for (int k = 2; k <= totalColumns; k++)
                 {
                     _columnNames.Add(myWorksheet.Cells[14, k].Value?.ToString() ?? myWorksheet.Cells[13, k].Value?.ToString());
+                   _columnMetrics.Add(myWorksheet.Cells[15, k].Value?.ToString());
                 }
+
 
 
                 for (int i = 22; i <= totalRows; i++)
