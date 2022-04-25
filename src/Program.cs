@@ -7,8 +7,6 @@ using System.Text;
 using System.Threading.Tasks;
 using Telegram.Bot;
 using Telegram.Bot.Args;
-using Telegram.Bot.Types;
-using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.ReplyMarkups;
 
 namespace WellModesBot
@@ -22,102 +20,125 @@ namespace WellModesBot
         private static List<FieldInfo> _allFields = new List<FieldInfo>();
         private static Dictionary<string, List<FieldInfo>> _fields = new Dictionary<string, List<FieldInfo>>();
 
+        private static readonly int[] RequiredData = new[] { 5, 7, 8, 3, 17, 11, 14, 15, 18, 22, 23, 33, 34, 38, 39, 51, 54, 55, 56 };
         static void Main(string[] args)
         {
             GetData();
             client = new TelegramBotClient(token);
-            client.StartReceiving();
             client.OnMessage += OnMessageHandler;
+            client.OnCallbackQuery += Client_OnCallbackQuery;
+
+            client.StartReceiving();
             Console.ReadLine();
             client.StopReceiving();
+        }
+
+        private static async void Client_OnCallbackQuery(object sender, CallbackQueryEventArgs ev)
+        {
+            var chatId = ev.CallbackQuery.From.Id;
+            var data = ev.CallbackQuery.Data;
+
+            switch (data)
+            {
+                case "info":
+                    await client.SendTextMessageAsync(chatId: chatId, text: $"Дата создания бота: 19.04.2022\nТекущая версия: 1.0.2");
+                    await client.SendStickerAsync(chatId: chatId, sticker: "https://tlgrm.ru/_/stickers/18f/4d5/18f4d57e-c910-3aef-9523-9a0d3bb60468/9.webp");
+                    break;
+                case "version":
+                    await client.SendTextMessageAsync(
+                        chatId: chatId, text: $"[21.04.2022 Версия: 1.0.0 (Beta)] \n * Добавлена возможность вывода скважин с разными месторождениями. \n\n" +
+                                              $"[23.04.2022 Версия: 1.0.1] \n * При выводе данных добавлены единицы изменерия. \n * Убран баг вывода при вводе info \n * Убран баг некорректного вывода скважин (555) \n\n " +
+                                              $"[25.04.2022 Версия: 1.0.2] \n * Все текстовые команды переписаны в меню (команда: menu). \n * Вывод скважин с разными местородения в качестве кнопок.");
+
+                    await client.SendStickerAsync(chatId: chatId,
+                          sticker: "https://cdn.tlgrm.app/stickers/18f/4d5/18f4d57e-c910-3aef-9523-9a0d3bb60468/192/3.webp");
+                    break;
+                default:
+                    await SendFieldInfoByIndex(int.Parse(data), chatId, RequiredData);
+                    break;
+            }
         }
 
         private static async void OnMessageHandler(object sender, MessageEventArgs e)
         {
             var msg = e.Message;
-            if (msg.Text != null)
+
+
+            if (msg.Text == null)
+                return;
+
+            InlineKeyboardMarkup markup = null;
+
+            if (msg.Text == "menu")
+            {
+                markup = new InlineKeyboardMarkup(
+                    new[]
+                    {
+                        new []{InlineKeyboardButton.WithUrl("Связаться с автором","https://t.me/len4r")},
+                        new []
+                        {
+                            InlineKeyboardButton.WithCallbackData("Информация о боте", "info"),
+                            InlineKeyboardButton.WithCallbackData("История изменении", "version")
+                        }
+                    });
+
+                await SendMessage(msg.Chat.Id, "Выберите опцию", markup: markup);
+                return;
+            }
+
+            if (_fields.TryGetValue(msg.Text, out var list))
             {
                 var message = new StringBuilder();
-                //await client.SendTextMessageAsync(msg.Chat.Id, FullName, replyMarkup: GetButtons());
-                switch (msg.Text)
+                if (list.Count > 1)
                 {
-                    case "info":
-                        msg = await client.SendTextMessageAsync(
-                              chatId: msg.Chat.Id, text: $"Разработка: Галиев Ленар Разимович \n" +
-                                                         $"Версия: 1.0.1\n" +
-                                                         $"С помощью данного бота вы можете полудить режимыне данные к свкажинам."
-,
-                              replyToMessageId: msg.MessageId); 
-                        msg = await client.SendStickerAsync(chatId: msg.Chat.Id, 
-                              sticker: "https://tlgrm.ru/_/stickers/18f/4d5/18f4d57e-c910-3aef-9523-9a0d3bb60468/9.webp");
-                        break;
-                    case "versia":
-                        msg = await client.SendTextMessageAsync(
-                              chatId: msg.Chat.Id, text: $"[Версия: 1.0.0 (Beta)] \n * Добавлена возможность вывода скважин с разными месторождениями \n" +
-                                                         $"[Версия: 1.0.1] \n * При выводе данных добавлены единицы изменерия \n * Убран баг вывода при вводе info \n * Убран баг некорректного вывода скважин (555)",
-                              replyToMessageId: msg.MessageId);
-                        msg = await client.SendStickerAsync(chatId: msg.Chat.Id,
-                              sticker: "https://cdn.tlgrm.app/stickers/18f/4d5/18f4d57e-c910-3aef-9523-9a0d3bb60468/192/3.webp");
-                        break;
-                    case "batman":
-                        msg = await client.SendStickerAsync(chatId: msg.Chat.Id,
-                              sticker: "https://tlgrm.ru/_/stickers/fa2/27e/fa227e13-45d9-3821-9b19-018dab84e820/192/5.webp");
-                        break;
-
-                    default:
-                        var requiredData = new[]  5, 7, 8, 3, 17, 11, 14, 15, 18, 22, 23, 33, 34, 38, 39, 51, 54, 55, 56 };
-                        if (_fields.TryGetValue(msg.Text, out var list))
-                        {
-                            message.AppendLine("Возможные варианты:");
-                            for (int i = 0; i < list.Count; i++)
-                                message.AppendLine($"{i+1}. {list[i]}");
-
-                            if (list.Count == 1)
-                            {
-                                PrintFieldDataByColumnIndexes(list[0], message, requiredData);
-                            }
-
-                            await SendMessage(msg, message.ToString());
-                            //await client.SendTextMessageAsync(msg.Chat.Id, message.ToString(), replyMarkup: GetButtons());
-                        }
-                        else
-                        {
-                            var firstField = _allFields.FirstOrDefault(x => x.FullName.StartsWith(msg.Text, StringComparison.OrdinalIgnoreCase));
-
-                            if (firstField != null)
-                            {
-                                PrintFieldDataByColumnIndexes(firstField, message, requiredData);
-                                await SendMessage(msg, message.ToString());
-                            }
-                            else
-                            {
-                                await SendMessage(msg, "Введите номер скважины и начало названия месторождения (слитно!)");
-                            }
-                        }
-                        break;
+                    message.Append("Пожалуйста, выберите скважину:");
+                    markup = new InlineKeyboardMarkup(list.Select(x => new[]
+                    {
+                        InlineKeyboardButton.WithCallbackData(x.FullName, _allFields.IndexOf(x).ToString())
+                    }).ToArray());
                 }
+                else
+                {
+                    PrintFieldDataByColumnIndexes(list[0], message, RequiredData);
+                }
+
+                await SendMessage(msg.Chat.Id, message.ToString(), markup: markup);
+            }
+            else
+            {
+                await SendFieldInfoByName(msg.Text, msg.Chat.Id, RequiredData);
             }
         }
 
-        /*
-        private static IReplyMarkup GetButtons()
+        private static async Task SendFieldInfoByName(string name, long chatId, int[] requiredData)
         {
-            return new ReplyKeyboardRemove
+            var message = new StringBuilder();
+            var firstField = _allFields.FirstOrDefault(x => x.FullName.StartsWith(name, StringComparison.OrdinalIgnoreCase));
+            if (firstField != null)
             {
-                Selective = new List<List<KeyboardButton>>
-                {
-
-                }
-            };
+                PrintFieldDataByColumnIndexes(firstField, message, requiredData);
+                await SendMessage(chatId, message.ToString());
+            }
+            else
+            {
+                await SendMessage(chatId, "Такой скважины нет!");
+            }
         }
-        */
 
-        private static async Task SendMessage(Telegram.Bot.Types.Message msg, string message)
+        private static async Task SendFieldInfoByIndex(int index, long chatId, int[] requiredData)
         {
-            await client.SendTextMessageAsync(chatId: msg.Chat.Id, text: message, replyToMessageId: msg.MessageId);
+            var firstField = _allFields[index];
+            var message = new StringBuilder();
+            PrintFieldDataByColumnIndexes(firstField, message, requiredData);
+            await SendMessage(chatId, message.ToString());
         }
 
-        private static void PrintFieldDataByColumnIndexes(FieldInfo field, StringBuilder message, int[] indexes)
+        private static async Task SendMessage(long chatId, string message, int replyMessageId = 0, InlineKeyboardMarkup markup = null)
+        {
+            await client.SendTextMessageAsync(chatId: chatId, text: message, replyToMessageId: replyMessageId, replyMarkup: markup);
+        }
+
+        private static void PrintFieldDataByColumnIndexes(FieldInfo field, StringBuilder message2, int[] indexes)
         {
             var query = _columnNames
                 .Select((x, i) =>
@@ -131,9 +152,10 @@ namespace WellModesBot
 
             foreach (var index in indexes)
             {
-                message.AppendLine($"{query[index].key}: {query[index].value} {query[index].metrics}");
+                message2.AppendLine($"{query[index].key}: {query[index].value} {query[index].metrics}");
             }
         }
+
         public static void GetData()
         {
             var path = @"ТРДС.xlsx";
@@ -141,13 +163,7 @@ namespace WellModesBot
 
             using (var xlPackage = new ExcelPackage(new FileInfo(path)))
             {
-                var myWorksheet = xlPackage.Workbook.Worksheets.First(); //select sheet here
-
-                foreach (var item in xlPackage.Workbook.Worksheets)
-                {
-
-                }
-
+                var myWorksheet = xlPackage.Workbook.Worksheets.First();
                 var totalRows = myWorksheet.Dimension.End.Row;
                 var totalColumns = myWorksheet.Dimension.End.Column;
                 var metrics = myWorksheet.Dimension.End.Column;
@@ -157,10 +173,8 @@ namespace WellModesBot
                 for (int k = 2; k <= totalColumns; k++)
                 {
                     _columnNames.Add(myWorksheet.Cells[14, k].Value?.ToString() ?? myWorksheet.Cells[13, k].Value?.ToString());
-                   _columnMetrics.Add(myWorksheet.Cells[15, k].Value?.ToString());
+                    _columnMetrics.Add(myWorksheet.Cells[15, k].Value?.ToString());
                 }
-
-
 
                 for (int i = 22; i <= totalRows; i++)
                 {
@@ -202,19 +216,6 @@ namespace WellModesBot
                     _allFields.Add(fieldInfo);
                 }
             }
-        }
-    }
-
-    internal class FieldInfo
-    {
-        public string Number { get; internal set; }
-        public string FieldName { get; internal set; }
-        public int RowIndex { get; internal set; }
-        public List<object> Data { get; internal set; }
-        public string FullName => Number + FieldName;
-        public override string ToString()
-        {
-            return FullName;
         }
     }
 }
