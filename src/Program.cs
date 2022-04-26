@@ -14,29 +14,35 @@ namespace WellModesBot
     class Program
     {
         private static string token = "5348869621:AAFeOl55384vMInbTORGsZwo9YVn-NoEv9w"; // token telegram
+        private static string Url = "https://v2.d-f.pw/app/application/6310/";
         private static TelegramBotClient client;
         private static List<string> _columnNames = new List<string>();
         private static List<string> _columnMetrics = new List<string>();
         private static List<FieldInfo> _allFields = new List<FieldInfo>();
         private static Dictionary<string, List<FieldInfo>> _fields = new Dictionary<string, List<FieldInfo>>();
-
         private static readonly int[] RequiredData = new[] { 5, 7, 8, 3, 17, 11, 14, 15, 18, 22, 23, 33, 34, 38, 39, 51, 54, 55, 56 };
+        
+        
         static void Main(string[] args)
         {
             GetData();
             client = new TelegramBotClient(token);
             client.OnMessage += OnMessageHandler;
             client.OnCallbackQuery += Client_OnCallbackQuery;
-
             client.StartReceiving();
             Console.ReadLine();
             client.StopReceiving();
-        }
+        }                            
 
         private static async void Client_OnCallbackQuery(object sender, CallbackQueryEventArgs ev)
         {
             var chatId = ev.CallbackQuery.From.Id;
             var data = ev.CallbackQuery.Data;
+            
+            //var client = new TelegramBotClient(configuration["token"]);
+            //var webHook:string = $"{configuration["Url"]}api/message/update";
+            //client.SetWebhookAsync(webHook).Wait();
+            //return serviceCollection.AddSingleton<ITelegramBotClient>(client);
 
             switch (data)
             {
@@ -69,20 +75,21 @@ namespace WellModesBot
 
             InlineKeyboardMarkup markup = null;
 
-            if (msg.Text == "menu")
+            if (msg.Text == "menu" || msg.Text == "Menu" || msg.Text == "Меню" || msg.Text == "меню")
             {
                 markup = new InlineKeyboardMarkup(
                     new[]
                     {
-                        new []{InlineKeyboardButton.WithUrl("Связаться с автором","https://t.me/len4r")},
+                        new []{InlineKeyboardButton.WithCallbackData("\U00002139 Информация о боте", "info")},
+                        new []{InlineKeyboardButton.WithCallbackData("\U0000231B История изменении", "version")},
                         new []
                         {
-                            InlineKeyboardButton.WithCallbackData("Информация о боте", "info"),
-                            InlineKeyboardButton.WithCallbackData("История изменении", "version")
+                            InlineKeyboardButton.WithUrl("\U0000270D Обратная связь","https://t.me/len4r"),
+                            InlineKeyboardButton.WithUrl("\U00002709 VK.com","https://vk.com/len4r")
                         }
                     });
 
-                await SendMessage(msg.Chat.Id, "Выберите опцию", markup: markup);
+                await SendMessage(msg.Chat.Id, "\U00002705 Выберите опцию:", markup: markup);
                 return;
             }
 
@@ -91,7 +98,7 @@ namespace WellModesBot
                 var message = new StringBuilder();
                 if (list.Count > 1)
                 {
-                    message.Append("Пожалуйста, выберите скважину:");
+                    message.Append("\U0001F50E Пожалуйста, выберите скважину:");
                     markup = new InlineKeyboardMarkup(list.Select(x => new[]
                     {
                         InlineKeyboardButton.WithCallbackData(x.FullName, _allFields.IndexOf(x).ToString())
@@ -121,7 +128,7 @@ namespace WellModesBot
             }
             else
             {
-                await SendMessage(chatId, "Такой скважины нет!");
+                await SendMessage(chatId, "\U000026A0 Такой скважины нет!");
             }
         }
 
