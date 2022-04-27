@@ -1,19 +1,25 @@
-﻿using OfficeOpenXml;
+﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
+using OfficeOpenXml;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Telegram.Bot;
-using Telegram.Bot.Args;
 using Telegram.Bot.Types.ReplyMarkups;
+using Telegram.Bot.Types;
+using Telegram.Bot.Types.Enums;
+using Telegram.Bot.Exceptions;
+using Telegram.Bot.Extensions.Polling;
 
 namespace WellModesBot
 {
     class Program
     {
-        private static string token = "5348869621:AAFeOl55384vMInbTORGsZwo9YVn-NoEv9w"; // token telegram
+        private static string token = "5348869621:AAFeOl55384vMInbTORGsZwo9YVn-NoEv9w";
         private static string Url = "https://v2.d-f.pw/app/application/6310/";
         private static TelegramBotClient client;
         private static List<string> _columnNames = new List<string>();
@@ -21,65 +27,54 @@ namespace WellModesBot
         private static List<FieldInfo> _allFields = new List<FieldInfo>();
         private static Dictionary<string, List<FieldInfo>> _fields = new Dictionary<string, List<FieldInfo>>();
         private static readonly int[] RequiredData = new[] { 5, 7, 8, 3, 17, 11, 14, 15, 18, 22, 23, 33, 34, 38, 39, 51, 54, 55, 56 };
-        
-        
-        static void Main(string[] args)
+
+
+        static async void Main(string[] args)
         {
             GetData();
-            client = new TelegramBotClient(token);
-            client.OnMessage += OnMessageHandler;
-            client.OnCallbackQuery += Client_OnCallbackQuery;
-            client.StartReceiving();
-            Console.ReadLine();
-            client.StopReceiving();
-        }                            
+            client = new TelegramBotClient(token); // Токен бота
+            using var cts = new CancellationTokenSource(); // Токен отмены
+            var receiverOptions = new ReceiverOptions{ AllowedUpdates = { }}; // Настройка получении обновлени
 
-        private static async void Client_OnCallbackQuery(object sender, CallbackQueryEventArgs ev)
-        {
-            var chatId = ev.CallbackQuery.From.Id;
-            var data = ev.CallbackQuery.Data;
+            client.StartReceiving(HandleUpdatesAsync, HandleErrorAsync, receiverOptions, cancellationToken: cts.Token); // Функция получении обновлении от Telegram
             
-            //var client = new TelegramBotClient(configuration["token"]);
-            //var webHook:string = $"{configuration["Url"]}api/message/update";
-            //client.SetWebhookAsync(webHook).Wait();
-            //return serviceCollection.AddSingleton<ITelegramBotClient>(client);
+            // Проверка на запуск
+            var me = await client.GetMeAsync();
+            Console.WriteLine($"Bot_id: {me.Id} \nBot_Name: {me.FirstName}");
+            Console.ReadLine();
+            cts.Cancel();
 
-            switch (data)
+
+            // Метод обработки обновление бота
+            async Task HandleUpdatesAsync(ITelegramBotClient сlient, Update update, CancellationToken cancellationToken)
             {
-                case "info":
-                    await client.SendTextMessageAsync(chatId: chatId, text: $"Дата создания бота: 19.04.2022\nТекущая версия: 1.0.2");
-                    await client.SendStickerAsync(chatId: chatId, sticker: "https://tlgrm.ru/_/stickers/18f/4d5/18f4d57e-c910-3aef-9523-9a0d3bb60468/9.webp");
-                    break;
-                case "version":
-                    await client.SendTextMessageAsync(
-                        chatId: chatId, text: $"[21.04.2022 Версия: 1.0.0 (Beta)] \n * Добавлена возможность вывода скважин с разными месторождениями. \n\n" +
-                                              $"[23.04.2022 Версия: 1.0.1] \n * При выводе данных добавлены единицы изменерия. \n * Убран баг вывода при вводе info \n * Убран баг некорректного вывода скважин (555) \n\n " +
-                                              $"[25.04.2022 Версия: 1.0.2] \n * Все текстовые команды переписаны в меню (команда: menu). \n * Вывод скважин с разными местородения в качестве кнопок.");
+                if(update.Type == UpdateType.Message && update?.Message?.Text != null)
+                {
+                    await HandleMessage(сlient, update.Message);
+                    return;
+                }
 
-                    await client.SendStickerAsync(chatId: chatId,
-                          sticker: "https://cdn.tlgrm.app/stickers/18f/4d5/18f4d57e-c910-3aef-9523-9a0d3bb60468/192/3.webp");
-                    break;
-                default:
-                    await SendFieldInfoByIndex(int.Parse(data), chatId, RequiredData);
-                    break;
+                if(update.Type == UpdateType.CallbackQuery)
+                {
+                    await HandleCallbackQuery(сlient, update.CallbackQuery);
+                    return;
+                }
+
             }
-        }
 
-        private static async void OnMessageHandler(object sender, MessageEventArgs e)
-        {
-            var msg = e.Message;
-
-
-            if (msg.Text == null)
-                return;
-
-            InlineKeyboardMarkup markup = null;
-
-            if (msg.Text == "menu" || msg.Text == "Menu" || msg.Text == "Меню" || msg.Text == "меню")
+            // Метод обработки сообщении бота
+            async Task HandleMessage(ITelegramBotClient сlient, Message msg)
             {
-                markup = new InlineKeyboardMarkup(
-                    new[]
-                    {
+                if (msg.Text == null)
+                    return;
+
+                InlineKeyboardMarkup markup = null;
+
+                if (msg.Text == "menu" || msg.Text == "Menu" || msg.Text == "Меню" || msg.Text == "меню")
+                {
+                    markup = new InlineKeyboardMarkup(
+                        new[]
+                        {
                         new []{InlineKeyboardButton.WithCallbackData("\U00002139 Информация о боте", "info")},
                         new []{InlineKeyboardButton.WithCallbackData("\U0000231B История изменении", "version")},
                         new []
@@ -87,48 +82,92 @@ namespace WellModesBot
                             InlineKeyboardButton.WithUrl("\U0000270D Обратная связь","https://t.me/len4r"),
                             InlineKeyboardButton.WithUrl("\U00002709 VK.com","https://vk.com/len4r")
                         }
-                    });
+                        });
 
-                await SendMessage(msg.Chat.Id, "\U00002705 Выберите опцию:", markup: markup);
-                return;
-            }
+                    await SendMessage(msg.Chat.Id, "\U00002705 Выберите опцию:", markup: markup);
+                    return;
+                }
 
-            if (_fields.TryGetValue(msg.Text, out var list))
-            {
-                var message = new StringBuilder();
-                if (list.Count > 1)
+                if (_fields.TryGetValue(msg.Text, out var list))
                 {
-                    message.Append("\U0001F50E Пожалуйста, выберите скважину:");
-                    markup = new InlineKeyboardMarkup(list.Select(x => new[]
+                    var message = new StringBuilder();
+                    if (list.Count > 1)
                     {
+                        message.Append("\U0001F50E Пожалуйста, выберите скважину:");
+                        markup = new InlineKeyboardMarkup(list.Select(x => new[]
+                        {
                         InlineKeyboardButton.WithCallbackData(x.FullName, _allFields.IndexOf(x).ToString())
                     }).ToArray());
+                    }
+                    else
+                    {
+                        PrintFieldDataByColumnIndexes(list[0], message, RequiredData);
+                    }
+
+                    await SendMessage(msg.Chat.Id, message.ToString(), markup: markup);
                 }
                 else
                 {
-                    PrintFieldDataByColumnIndexes(list[0], message, RequiredData);
+                    await SendFieldInfoByName(msg.Text, msg.Chat.Id, RequiredData);
                 }
 
-                await SendMessage(msg.Chat.Id, message.ToString(), markup: markup);
-            }
-            else
-            {
-                await SendFieldInfoByName(msg.Text, msg.Chat.Id, RequiredData);
-            }
-        }
 
-        private static async Task SendFieldInfoByName(string name, long chatId, int[] requiredData)
-        {
-            var message = new StringBuilder();
-            var firstField = _allFields.FirstOrDefault(x => x.FullName.StartsWith(name, StringComparison.OrdinalIgnoreCase));
-            if (firstField != null)
-            {
-                PrintFieldDataByColumnIndexes(firstField, message, requiredData);
-                await SendMessage(chatId, message.ToString());
+                async Task SendFieldInfoByName(string name, long chatId, int[] requiredData)
+                {
+                    var message = new StringBuilder();
+                    var firstField = _allFields.FirstOrDefault(x => x.FullName.StartsWith(name, StringComparison.OrdinalIgnoreCase));
+                    if (firstField != null)
+                    {
+                        PrintFieldDataByColumnIndexes(firstField, message, requiredData);
+                        await SendMessage(chatId, message.ToString());
+                    }
+                    else
+                    {
+                        await SendMessage(chatId, "\U000026A0 Такой скважины нет!");
+                    }
+                }
+
             }
-            else
+
+
+            async Task HandleCallbackQuery(ITelegramBotClient сlient, CallbackQuery callbackQuery)
             {
-                await SendMessage(chatId, "\U000026A0 Такой скважины нет!");
+
+                //var chatId = ev.CallbackQuery.From.Id;
+                var data = callbackQuery.Data;
+
+                switch (data)
+                {
+                    case "info":
+                        await client.SendTextMessageAsync(callbackQuery.Message.Chat.Id, text: $"Дата создания бота: 19.04.2022\nТекущая версия: 1.0.2");
+                        await client.SendStickerAsync(callbackQuery.Message.Chat.Id, sticker: "https://tlgrm.ru/_/stickers/18f/4d5/18f4d57e-c910-3aef-9523-9a0d3bb60468/9.webp");
+                        break;
+                    case "version":
+                        await client.SendTextMessageAsync(callbackQuery.Message.Chat.Id, text: 
+                                                  $"[21.04.2022 Версия: 1.0.0 (Beta)] \n * Добавлена возможность вывода скважин с разными месторождениями. \n\n" +
+                                                  $"[23.04.2022 Версия: 1.0.1] \n * При выводе данных добавлены единицы изменерия. \n * Убран баг вывода при вводе info \n * Убран баг некорректного вывода скважин (555) \n\n " +
+                                                  $"[25.04.2022 Версия: 1.0.2] \n * Все текстовые команды переписаны в меню (команда: menu). \n * Вывод скважин с разными местородения в качестве кнопок.");
+
+                        await client.SendStickerAsync(callbackQuery.Message.Chat.Id,
+                              sticker: "https://cdn.tlgrm.app/stickers/18f/4d5/18f4d57e-c910-3aef-9523-9a0d3bb60468/192/3.webp");
+                        break;
+                    default:
+                        await SendFieldInfoByIndex(int.Parse(data), callbackQuery.Message.Chat.Id, RequiredData);
+                        break;
+                }
+            }
+
+
+            // Обработка ошибок бота
+            Task HandleErrorAsync(ITelegramBotClient client, Exception exception, CancellationToken cancellationToken)
+            {
+                var ErrorMessage = exception switch
+                {
+                    ApiRequestException apiRequestException => $"Ошибка Telegram Api: {apiRequestException.ErrorCode}",
+                    _ => exception.ToString()
+                };
+                Console.WriteLine(ErrorMessage);
+                return Task.CompletedTask;
             }
         }
 
