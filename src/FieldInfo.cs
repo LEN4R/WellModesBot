@@ -10,6 +10,7 @@ namespace WellModesBot
         public int RowIndex { get; internal set; }
         public List<object> Data { get; internal set; }
         public string FullName => Number + FieldName;
+        public int WorksheetNumber { get; set; }
 
         public override string ToString()
         {
