@@ -26,6 +26,9 @@
     <None Update="Info_04_2022.xlsx">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <None Update="Info_05_2022.xlsx">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="pic_info.gif">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>

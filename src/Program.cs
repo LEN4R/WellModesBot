@@ -27,10 +27,9 @@ namespace WellModesBot
     }
     class Program
     {
-        //caption: "<b>Ara bird</b>. <i>Source</i>: <a href=\"https://pixabay.com\">Pixabay</a>",
         private static string token = "5348869621:AAFeOl55384vMInbTORGsZwo9YVn-NoEv9w";
 
-        public static readonly string InfoStart = $"\U0000270C Добро пожаловать в WellModesBot! \n\U0000270F Для начала работы введите номер скважины.\n\n\U00002139 Вызов меню по команде: [Меню] & [Menu].";
+        public static readonly string InfoStart = $"\U0000270C Добро пожаловать в <b>WellModesBot!</b>";
 
         private static readonly string InstructionText = $"\U00000031\U000020E3 Введите номер скважины, например: '123'. WellModesBot выведит данные по скважине.\n" +
                                                          $"\U00000032\U000020E3 Если номер скважины совпадает в нескольких месторождениях, то WellModesBot предложит выбор выгрузки данных.\n\n" +
@@ -119,26 +118,21 @@ namespace WellModesBot
 
                 InlineKeyboardMarkup markup = null;
 
-                if (msg.Text == "test")
-                {
-                    
-                    await client.SendPhotoAsync(
-                    msg.Chat.Id,
-                    photo: "https://raw.githubusercontent.com/LEN4R/WellModesBot/main/pic/pic_instruction.jpg",
-                    caption: InstructionText,
-                    //caption: "<b>Ara bird</b>. <i>Source</i>: <a href=\"https://pixabay.com\">Pixabay</a>",
-                    parseMode: ParseMode.Html);
-                    return;
-                }
 
                 if (msg.Text == "/start")
-                {
-                    await client.SendTextMessageAsync(msg.Chat.Id, text: InfoStart);
+                {   
+                    await client.SendPhotoAsync(
+                    msg.Chat.Id,
+                    photo: "https://raw.githubusercontent.com/LEN4R/WellModesBot/main/pic/logo.jpg",
+                    caption: InfoStart,
+                    parseMode: ParseMode.Html);
+
+                    await client.SendTextMessageAsync(msg.Chat.Id, text: "/help  - команда для вызова меню.\nТакже: [Меню] или [Menu]");
                     return;
                 }
                 else
                 {
-                    if (msg.Text == "menu" || msg.Text == "Menu" || msg.Text == "Меню" || msg.Text == "меню" || msg.Text == "/help")
+                    if (msg.Text == "menu" || msg.Text == "Menu" || msg.Text == "Меню" || msg.Text == "меню" || msg.Text == "/help" || msg.Text == "help")
                     {
                         markup = new InlineKeyboardMarkup(
                             new[]
@@ -281,8 +275,8 @@ namespace WellModesBot
             {
                 var worksheetsList = new List<WorksheetInfo>();
 
-                worksheetsList.Add(ReadWorksheet(xlPackage, 1, new[] { 5, 7, 8, 3, 17, 11, 14, 15, 18, 22, 23, 33, 34, 38, 39, 41, 51, 64, 54, 55, 56 }));
-                worksheetsList.Add(ReadWorksheet(xlPackage, 2, new[] { 5, 7, 8, 3, 11, 12, 19, 20, 23, 24, 25, 26, 30, 33, 41, 48, 45, 44, 54, 38, 34 }));
+                worksheetsList.Add(ReadWorksheet(xlPackage, 0, new[] { 5, 7, 8, 3, 17, 11, 14, 15, 18, 22, 23, 33, 34, 38, 39, 41, 51, 64, 54, 55, 56 }));
+                worksheetsList.Add(ReadWorksheet(xlPackage, 1, new[] { 5, 7, 8, 3, 11, 12, 19, 20, 23, 24, 25, 26, 30, 33, 41, 48, 45, 44, 54, 38, 34 }));
 
                 _worksheetsList = worksheetsList;
 
@@ -347,7 +341,7 @@ namespace WellModesBot
                     FieldName = fieldNameStr,
                     RowIndex = i,
                     Data = data,
-                    WorksheetNumber = worksheetIndex - 1
+                    WorksheetNumber = worksheetIndex // -1
                 };
 
                 list.Add(fieldInfo);
