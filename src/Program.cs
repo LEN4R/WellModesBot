@@ -27,18 +27,26 @@ namespace WellModesBot
     }
     class Program
     {
+        //caption: "<b>Ara bird</b>. <i>Source</i>: <a href=\"https://pixabay.com\">Pixabay</a>",
         private static string token = "5348869621:AAFeOl55384vMInbTORGsZwo9YVn-NoEv9w";
+
         public static readonly string InfoStart = $"\U0000270C Добро пожаловать в WellModesBot! \n\U0000270F Для начала работы введите номер скважины.\n\n\U00002139 Вызов меню по команде: [Меню] & [Menu].";
-        private static readonly string InstructionText = $"\U00000031\U000020E3 Введите номер скважины, например: '123'. WMB выведит информацию по скважине.\n" +
-                                                         $"\U00000032\U000020E3 Если номер скважины совпадает в нескольких месторождении, то WMB предложит выбор между месторождениями.\n\n" +
-                                                         $"\U00002139 Возможен ввод номер скважины+месторождение, например: если нужно 123 Равенское месторождение, то вводим: '123Р' или '123р' или '123Ра' и т.д 	\n\U000025B6 бот не привязан к регистру!\U0001F4AA \n\n " +
-                                                         $"\U000026A0 Бот не понимает звездочки '*', для получения информации скважин с индексом, неодходимо ввеcти Индекс!";
-        private static readonly string VersionText = $"[21.04.2022 Версия: 1.0.0 (Beta)] \n \U000025AA Добавлена возможность вывода скважин с разными месторождениями. \n\n" +
-                                                     $"[23.04.2022 Версия: 1.0.1] \n \U000025AA При выводе данных добавлены единицы изменерия. \n \U000025AA Убран баг некорректного вывода скважин. \n\n " +
-                                                     $"[25.04.2022 Версия: 1.0.1.1] \n \U000025AA Все текстовые команды переписаны в меню (команда: menu). \n \U000025AA Вывод скважин с разными местородения в качестве кнопок. \n\n " +
-                                                     $"[28.04.2022 Версия: 1.0.2] \n \U000025AA Код полностью переписан под API.TelegramBot v17. Также бот залит на хостинг (доступен 24/7).";
-        private static readonly string InfoText = $"\U0001F4C5 Дата создания бота: 20.04.2022\n\U0001F4BBТекущая версия бота: 1.0.2\n\U0001F4BEБаза данных от 04.2022";
-      
+
+        private static readonly string InstructionText = $"\U00000031\U000020E3 Введите номер скважины, например: '123'. WellModesBot выведит данные по скважине.\n" +
+                                                         $"\U00000032\U000020E3 Если номер скважины совпадает в нескольких месторождениях, то WellModesBot предложит выбор выгрузки данных.\n\n" +
+                                                         $"\U00002139 Возможен ввод номер скважины+месторождение, например: если нужно 123 Равенское месторождение, то вводим: '123Р' или '123р' или '123Ра' и т.д. \n\U000025B6 <b>WellModesBot не привязан к регистру!</b>\U0001F4AA \n\n " +
+                                                         $"\U000026A0 WellModesBot не воспринимает '*', для получения информации скважин с индексом, неодходимо ввеcти <b>Индекс!</b>";
+
+        private static readonly string VersionText = $"<b>[21.04.2022 Версия: 1.0.0 (Beta)]</b> \n \U000025AA Добавлена возможность вывода скважин с разными месторождениями. \n\n" +
+                                                     $"<b>[23.04.2022 Версия: 1.0.1]</b> \n \U000025AA При выводе данных добавлены единицы изменерия. \n \U000025AA Убран баг некорректного вывода скважин. \n\n " +
+                                                     $"<b>[25.04.2022 Версия: 1.0.1.1]</b> \n \U000025AA Все текстовые команды переписаны в меню. \n \U000025AA Вывод скважин с разными местородениями в качестве кнопок. \n\n " +
+                                                     $"<b>[28.04.2022 Версия: 1.0.2]</b> \n \U000025AA Код полностью переписан под API.TelegramBot v17. WellModesBot адаптирован под хостинг, теперь доступен 24/7.  \n\n " +
+                                                     $"<b>[03.05.2022 Версия: 1.0.3]</b> \n \U000025AA Добавлена поддержка нагнетательных скважин.";
+
+        private static readonly string InfoText = $"\U0001F4C5 Дата создания бота: <b>20.04.2022</b>\n" +
+                                                  $"\U0001F4BB Текущая версия бота: <b>1.0.3</b>\n" +
+                                                  $"\U0001F4BE База данных от <b>05.2022</b>\n\n \U0000270F Разработка:\n<b><i>\U0001F518LEN4R\n\U0001F518elemaunt\n\U0001F518Favelin</i></b>";
+
         private static string Url = "https://v2.d-f.pw/app/application/6310/";
         private static TelegramBotClient client;
      
@@ -59,7 +67,7 @@ namespace WellModesBot
             
             // Проверка на запуск
             var me = client.GetMeAsync().Result;
-            Console.WriteLine($"Bot_id: {me.Id} \nBot_Name: {me.FirstName}");
+            Console.WriteLine($"Bot ID: {me.Id} \nBot Name: {me.FirstName}");
             Console.ReadLine();
             cts.Cancel();
 
@@ -101,17 +109,6 @@ namespace WellModesBot
 
                 if(update.Message!.Type != MessageType.Text)
                     return;
-
-                //Переменные
-                /*
-                chatId = update.Message.Chat.Id;
-                messageText = update.Message.Text;
-                messageId = update.Message.MessageId;
-                username = update.Message.Chat.Username;
-                firstName = update.Message.From.LastName;
-                lastName = update.Message.From.LastName;
-                Id = update.Message.From.Id;
-                */
             }
 
             // Метод обработки сообщении бота
@@ -124,12 +121,14 @@ namespace WellModesBot
 
                 if (msg.Text == "test")
                 {
+                    
                     await client.SendPhotoAsync(
                     msg.Chat.Id,
-                    photo: "https://github.com/LEN4R/WellModesBot/blob/main/pic_instruction.png?raw=true",
-                    caption: "<b>Ara bird</b>. <i>Source</i>: <a href=\"https://pixabay.com\">Pixabay</a>",
+                    photo: "https://raw.githubusercontent.com/LEN4R/WellModesBot/main/pic/pic_instruction.jpg",
+                    caption: InstructionText,
+                    //caption: "<b>Ara bird</b>. <i>Source</i>: <a href=\"https://pixabay.com\">Pixabay</a>",
                     parseMode: ParseMode.Html);
-                return;
+                    return;
                 }
 
                 if (msg.Text == "/start")
@@ -139,7 +138,7 @@ namespace WellModesBot
                 }
                 else
                 {
-                    if (msg.Text == "menu" || msg.Text == "Menu" || msg.Text == "Меню" || msg.Text == "меню")
+                    if (msg.Text == "menu" || msg.Text == "Menu" || msg.Text == "Меню" || msg.Text == "меню" || msg.Text == "/help")
                     {
                         markup = new InlineKeyboardMarkup(
                             new[]
@@ -158,37 +157,7 @@ namespace WellModesBot
                         return;
                     }
 
-                    //Поиск скважин
-                    //var ex1 = await Finder(_worksheetsList[0], msg, markup);
-                    //var ex2 = await Finder(_worksheetsList[1], msg, markup);
-                    //var allEx = _worksheetsList[0].Concat(_worksheetsList[1])
-
                     await ProcessMessage(msg, markup);
-
-                    #region комментарии
-                    /*if (ex1.Item1)
-                    {
-                        if (ex2.Item1)
-                        {
-                            if(ex1.Item3 != null && ex1.Item3 != null)
-                            {
-
-                            }
-                            else
-                            {
-
-                            }
-                        }
-                    }
-                    else
-                    {
-                        if(!ex2.Item1)
-                            await SendMessage(msg.Chat.Id, "\U000026A0 ОШИБКА! Такой скважины нет!");
-                    }*/
-
-                    //if (!fff && !fff1)
-                    //    await SendMessage(msg.Chat.Id, "\U000026A0 ОШИБКА! Такой скважины нет!");
-                    #endregion 
                 }
             }
 
@@ -237,15 +206,23 @@ namespace WellModesBot
                 switch (data)
                 {
                     case "instruction":
-                        await client.SendTextMessageAsync(callbackQuery.Message.Chat.Id, text: InstructionText);
+                        //await client.SendTextMessageAsync(callbackQuery.Message.Chat.Id, text: InstructionText);
+                        await client.SendPhotoAsync(callbackQuery.Message.Chat.Id,
+                        photo: "https://raw.githubusercontent.com/LEN4R/WellModesBot/main/pic/pic_instruction.jpg",
+                        caption: InstructionText,
+                        parseMode: ParseMode.Html);
                         break;
                     case "info":
-                        await client.SendTextMessageAsync(callbackQuery.Message.Chat.Id, text: InfoText);
-                        //await client.SendAnimationAsync(callbackQuery.Message.Chat.Id, animation: "https://www.dropbox.com/s/byuc1uuhn6kpcvz/pic_info.gif?dl=0", caption: "Waves");
+                        await client.SendPhotoAsync(callbackQuery.Message.Chat.Id,
+                        photo: "https://raw.githubusercontent.com/LEN4R/WellModesBot/main/pic/pic_info.jpg",
+                        caption: InfoText,
+                        parseMode: ParseMode.Html);
                         break;
                     case "version":
-                        await client.SendTextMessageAsync(callbackQuery.Message.Chat.Id, text: VersionText);
-                        //await client.SendStickerAsync(callbackQuery.Message.Chat.Id, sticker: "https://cdn.tlgrm.app/stickers/18f/4d5/18f4d57e-c910-3aef-9523-9a0d3bb60468/192/3.webp");
+                        await client.SendPhotoAsync(callbackQuery.Message.Chat.Id,
+                        photo: "https://raw.githubusercontent.com/LEN4R/WellModesBot/main/pic/pic_version.jpg",
+                        caption: VersionText,
+                        parseMode: ParseMode.Html);
                         break;
                     default:
                         await SendFieldInfoByIndex(int.Parse(data), callbackQuery.Message.Chat.Id);
