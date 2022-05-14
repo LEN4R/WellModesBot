@@ -24,17 +24,18 @@ namespace WellModesBot
         public string messageText;
         public long chatId;
         public string? username;
+        public string firstname;
+        public string lastname;
     }
     class Program
     {
-        private static string token = "5348869621:AAFeOl55384vMInbTORGsZwo9YVn-NoEv9w";
+        private static string token = "5348869621:AAFeOl55384vMInbTORGsZwo9YVn-NoEv9w"; //WellModesBot
+        //private static string token = "5333261863:AAEm0hBmW13UOuu2weGKZqlSHx3Nk7-4tlg"; // TestLEN4RBot
 
-        public static readonly string InfoStart = $"\U0000270C Добро пожаловать в <b>WellModesBot!</b>";
-
-        private static readonly string InstructionText = $"\U00000031\U000020E3 Введите номер скважины, например: '123'. WellModesBot выведит данные по скважине.\n" +
-                                                         $"\U00000032\U000020E3 Если номер скважины совпадает в нескольких месторождениях, то WellModesBot предложит выбор выгрузки данных.\n\n" +
-                                                         $"\U00002139 Возможен ввод номер скважины+месторождение, например: если нужно 123 Равенское месторождение, то вводим: '123Р' или '123р' или '123Ра' и т.д. \n\U000025B6 <b>WellModesBot не привязан к регистру!</b>\U0001F4AA \n\n " +
-                                                         $"\U000026A0 WellModesBot не воспринимает '*', для получения информации скважин с индексом, неодходимо ввеcти <b>Индекс!</b>";
+        private static readonly string InstructionText = $"\U00000031\U000020E3 Введите номер скважины, бот выведит данные по скважине.\n" +
+                                                         $"\U00000032\U000020E3 Если номер скважины совпадает в нескольких месторождениях, то бот предложит выбор выгрузки данных.\n\n" +
+                                                         $"\U00002139 Для бювстрого вывода даннвх возможен ввод: [номер скважины]+[начало месторождения]. \n\U000025B6 <b>Бот не привязан к регистру!</b>\U0001F4AA \n\n " +
+                                                         $"\U000026A0 Бот не воспринимает '*', для получения информации скважин с индексом, неодходимо ввеcти <b>Индекс!</b>";
 
         private static readonly string VersionText = $"<b>[21.04.2022 Версия: 1.0.0 (Beta)]</b> \n \U000025AA Добавлена возможность вывода скважин с разными месторождениями. \n\n" +
                                                      $"<b>[23.04.2022 Версия: 1.0.1]</b> \n \U000025AA При выводе данных добавлены единицы изменерия. \n \U000025AA Убран баг некорректного вывода скважин. \n\n " +
@@ -48,7 +49,7 @@ namespace WellModesBot
 
         private static string Url = "https://v2.d-f.pw/app/application/6310/";
         private static TelegramBotClient client;
-     
+
         static string logUsers = "logUsers.json";
         static List<BotUpdate> botUpdate = new List<BotUpdate>();
         private static List<WorksheetInfo> _worksheetsList;
@@ -61,9 +62,9 @@ namespace WellModesBot
             client = new TelegramBotClient(token); // Токен бота
             using var cts = new CancellationTokenSource(); // Токен отмены
 
-            var receiverOptions = new ReceiverOptions { AllowedUpdates = new[]{ UpdateType.CallbackQuery, UpdateType.Message } };  // Настройка получении обновлени
+            var receiverOptions = new ReceiverOptions { AllowedUpdates = new[] { UpdateType.CallbackQuery, UpdateType.Message } };  // Настройка получении обновлени
             client.StartReceiving(HandleUpdatesAsync, HandleErrorAsync, receiverOptions, cancellationToken: cts.Token); // Функция получении обновлении от Telegram
-            
+
             // Проверка на запуск
             var me = client.GetMeAsync().Result;
             Console.WriteLine($"Bot ID: {me.Id} \nBot Name: {me.FirstName}");
@@ -76,37 +77,37 @@ namespace WellModesBot
                 var botUpdatesString = System.IO.File.ReadAllText(logUsers);
                 botUpdate = JsonConvert.DeserializeObject<List<BotUpdate>>(botUpdatesString) ?? botUpdate;
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 Console.WriteLine($"Ошибка десериализации обновлении бота {ex}");
             }
 
-
             // Метод обработки обновление бота
             async Task HandleUpdatesAsync(ITelegramBotClient сlient, Update update, CancellationToken cancellationToken)
             {
+
                 if (update.Type == UpdateType.Message && update?.Message?.Text != null)
                 {
                     await HandleMessage(сlient, update.Message);
                     var _botUpdate = new BotUpdate
                     {
-                        messageText = update.Message.Text,
                         chatId = update.Message.Chat.Id,
-                        username = update.Message.Chat.Username
+                        messageText = update.Message.Text,
+                        username = update.Message.Chat.Username,
+                        firstname = update.Message.From.FirstName,
+                        lastname = update.Message.From.LastName,
                     };
                     botUpdate.Add(_botUpdate);
                     var botUpdatesString = JsonConvert.SerializeObject(botUpdate);
                     System.IO.File.WriteAllText(logUsers, botUpdatesString);
                     return;
                 }
-
                 if (update.Type == UpdateType.CallbackQuery)
                 {
                     await HandleCallbackQuery(сlient, update.CallbackQuery);
                     return;
                 }
-
-                if(update.Message!.Type != MessageType.Text)
+                if (update.Message!.Type != MessageType.Text)
                     return;
             }
 
@@ -118,21 +119,20 @@ namespace WellModesBot
 
                 InlineKeyboardMarkup markup = null;
 
-
                 if (msg.Text == "/start")
-                {   
+                {
                     await client.SendPhotoAsync(
                     msg.Chat.Id,
                     photo: "https://raw.githubusercontent.com/LEN4R/WellModesBot/main/pic/logo.jpg",
-                    caption: InfoStart,
-                    parseMode: ParseMode.Html);
-
-                    await client.SendTextMessageAsync(msg.Chat.Id, text: "/help  - команда для вызова меню.\nТакже: [Меню] или [Menu]");
+                    /*caption: "text";*/ parseMode: ParseMode.Html);
+                    await client.SendTextMessageAsync(msg.Chat.Id, text: $"\U0001F44B Здравствуйте {msg.From.LastName} {msg.From.FirstName}!\n\U0001F916 Меня зовут <u>WellModesBot</u>, я телеграмм бот!", parseMode: ParseMode.Html);
+                    await client.SendTextMessageAsync(msg.Chat.Id, text: $"\U00002139 Для начала работы <b>отправьте мне номер скважины</b>.", parseMode: ParseMode.Html);
+                    await client.SendTextMessageAsync(msg.Chat.Id, text: $"\U0001F310 Чтобы вызвать меню, отправьте <b>'/help'</b>.", parseMode: ParseMode.Html);
                     return;
                 }
                 else
                 {
-                    if (msg.Text == "menu" || msg.Text == "Menu" || msg.Text == "Меню" || msg.Text == "меню" || msg.Text == "/help" || msg.Text == "help")
+                    if (msg.Text == "menu" || msg.Text == "Menu" || msg.Text == "Меню" || msg.Text == "меню" || msg.Text == "/help" || msg.Text == "help" || msg.Text == "Help")
                     {
                         markup = new InlineKeyboardMarkup(
                             new[]
@@ -146,11 +146,9 @@ namespace WellModesBot
                                     InlineKeyboardButton.WithUrl("\U00002709 VK.com","https://vk.com/len4r")
                                 }
                             });
-
                         await SendMessage(msg.Chat.Id, "\U00002705 Выберите опцию:", markup: markup);
                         return;
                     }
-
                     await ProcessMessage(msg, markup);
                 }
             }
@@ -163,17 +161,12 @@ namespace WellModesBot
                     if (wellsList.Count > 1)
                     {
                         message.Append("\U0001F50E Пожалуйста, выберите скважину:");
-                        markup = new InlineKeyboardMarkup(wellsList.Select(x =>
-                        new[]
-                        {
-                            InlineKeyboardButton.WithCallbackData(_worksheetsList[x.WorksheetNumber].Name + " " + x.FullName, _allFields.IndexOf(x).ToString())
-                        }).ToArray());
+                        markup = new InlineKeyboardMarkup(wellsList.Select(x => new[] { InlineKeyboardButton.WithCallbackData(_worksheetsList[x.WorksheetNumber].Name + " " + x.FullName, _allFields.IndexOf(x).ToString()) }).ToArray());
                     }
                     else
                     {
                         PrintFieldDataByColumnIndexes(wellsList[0], message, _worksheetsList[wellsList[0].WorksheetNumber]);
                     }
-
                     await SendMessage(msg.Chat.Id, message.ToString(), markup: markup);
                 }
                 else
@@ -229,10 +222,8 @@ namespace WellModesBot
             {
                 var errorMessage = exception switch
                 {
-                    ApiRequestException apiRequestException => $"Ошибка Telegram Api: {apiRequestException.ErrorCode}",
-                    _ => exception.ToString()
+                    ApiRequestException apiRequestException => $"Ошибка Telegram Api: {apiRequestException.ErrorCode}",_ => exception.ToString()
                 };
-
                 Console.WriteLine(errorMessage);
                 return Task.CompletedTask;
             }
@@ -258,37 +249,103 @@ namespace WellModesBot
                 .Select((x, i) => (key: x, value: field.Data[i], metrics: info.ColumnMetrics[i]))
                 .Where(x => x.key != null).ToArray();
 
-            foreach (var index in info.RequiredData)
+            foreach ((int, OutputType) index in info.RequiredData)
             {
-                message.AppendLine($"{query[index].key}: {query[index].value} {query[index].metrics}");
+                var queryIndex = query[index.Item1];
+                switch (index.Item2)
+                {
+                    case OutputType.Default:
+                        message.AppendLine($"{queryIndex.key}: {queryIndex.value} {queryIndex.metrics}");
+                        break;
+                    case OutputType.Number:
+                        message.AppendLine($"{queryIndex.key}: {double.Parse(queryIndex.value.ToString()).ToString("#.##")} {queryIndex.metrics}");
+                        break;
+                    default:
+                        break;
+                }
             }
         }
 
         public static void GetData()
         {
-            var path = Directory.EnumerateFiles(Environment.CurrentDirectory).FirstOrDefault(x => x.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase));
-            Console.WriteLine($"Файл загружен:{path}");
-            //var path = @"ТРДС.xlsx";
+            //var path = Directory.EnumerateFiles(Environment.CurrentDirectory).FirstOrDefault(x => x.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase));
+            var path = @"Info_05_2022.xlsx";
+            var locationWellsDoc = @"locationOfWells.xlsx";
+            Console.WriteLine($"Файл загружен:{path} + {locationWellsDoc}");
             ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
 
             using (var xlPackage = new ExcelPackage(new FileInfo(path)))
             {
                 var worksheetsList = new List<WorksheetInfo>();
 
-                worksheetsList.Add(ReadWorksheet(xlPackage, 0, new[] { 5, 7, 8, 3, 17, 11, 14, 15, 18, 22, 23, 33, 34, 38, 39, 41, 51, 64, 54, 55, 56 }));
-                worksheetsList.Add(ReadWorksheet(xlPackage, 1, new[] { 5, 7, 8, 3, 11, 12, 19, 20, 23, 24, 25, 26, 30, 33, 41, 48, 45, 44, 54, 38, 34 }));
+                worksheetsList.Add(ReadWorksheet(xlPackage, 0, new[] { (5, OutputType.Default), 
+                                                                       (7, OutputType.Default),
+                                                                       (8, OutputType.Default),
+                                                                       (3, OutputType.Default),
+                                                                       (17, OutputType.Default),
+                                                                       (11, OutputType.Default),
+                                                                       (14, OutputType.Default),
+                                                                       (15, OutputType.Default),
+                                                                       (18, OutputType.Default),
+                                                                       (22, OutputType.Default),
+                                                                       (23, OutputType.Default),
+                                                                       (33, OutputType.Default),
+                                                                       (34, OutputType.Default),
+                                                                       (38, OutputType.Default),
+                                                                       (39, OutputType.Default),
+                                                                       (41, OutputType.Default),
+                                                                       (51, OutputType.Default),
+                                                                       (64, OutputType.Default),
+                                                                       (54, OutputType.Number),
+                                                                       (55, OutputType.Number),
+                                                                       (56, OutputType.Number)
+                                                                      })); //ТРДС
+                worksheetsList.Add(ReadWorksheet(xlPackage, 1, new[] { (5, OutputType.Default),
+                                                                       (7, OutputType.Default),
+                                                                       (8, OutputType.Default),
+                                                                       (3, OutputType.Default),
+                                                                       (11, OutputType.Default),
+                                                                       (12, OutputType.Default),
+                                                                       (19, OutputType.Default),
+                                                                       (20, OutputType.Default),
+                                                                       (23, OutputType.Default),
+                                                                       (24, OutputType.Default),
+                                                                       (25, OutputType.Default),
+                                                                       (26, OutputType.Default),
+                                                                       (30, OutputType.Default),
+                                                                       (33, OutputType.Default),
+                                                                       (113, OutputType.Default),
+                                                                       (41, OutputType.Default),
+                                                                       (48, OutputType.Default),
+                                                                       (45, OutputType.Default),
+                                                                       (44, OutputType.Default),
+                                                                       (54, OutputType.Number),
+                                                                       (38, OutputType.Default),
+                                                                       (34, OutputType.Default),
+                                                                       (115, OutputType.Number),
+                                                                       })); //ТРНС
 
                 _worksheetsList = worksheetsList;
-
                 _allFields = worksheetsList.SelectMany(x => x.Fields).ToList();
                 _allFieldsCombined = worksheetsList.SelectMany(x => x.FieldsCombined)
                     .GroupBy(x => x.Key)
                     .Select(x => (x.Key, x.SelectMany(y => y.Value)))
                     .ToDictionary(x => x.Key, x => x.Item2.ToList());
             }
+
+            /*
+            using (var xlPackage = new ExcelPackage(new FileInfo(locationWellsDoc)));
+            {
+                Dictionary<string, Action<string, locationWellsDoc>> MapFieldSetters { get; set; } =  new Dictionary<string, Action<string, locationWellsDoc>>()
+                {
+                    { "First Name", (s,g) => g.cnst_first_nm = s },
+                    { "Last Name", (s,g) => g.cnst_Last_nm = s },
+                };
+            }
+            */
         }
 
-        private static WorksheetInfo ReadWorksheet(ExcelPackage xlPackage, int worksheetIndex, int[] requiredData)
+        private static WorksheetInfo ReadWorksheet(ExcelPackage xlPackage, int worksheetIndex, (int, OutputType)[] requiredData)
         {
             var worksheetFields = new List<FieldInfo>();
             var worksheetFieldsCombined = new Dictionary<string, List<FieldInfo>>();
@@ -298,8 +355,6 @@ namespace WellModesBot
             var myWorksheet = xlPackage.Workbook.Worksheets[worksheetIndex];
             var totalRows = myWorksheet.Dimension.End.Row;
             var totalColumns = myWorksheet.Dimension.End.Column;
-            //var metrics = myWorksheet.Dimension.End.Column;
-            //var row = myWorksheet.Row(1);
 
             for (int k = 2; k <= totalColumns; k++)
             {
@@ -346,10 +401,10 @@ namespace WellModesBot
 
                 list.Add(fieldInfo);
                 worksheetFields.Add(fieldInfo);
-
             }
 
             return new WorksheetInfo(myWorksheet.Name, worksheetFields, worksheetFieldsCombined, requiredData, columnNames, columnMetrics);
         }
+
     }
 }

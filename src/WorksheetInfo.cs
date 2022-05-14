@@ -8,11 +8,11 @@ namespace WellModesBot
         public string Name { get; }
         public List<FieldInfo> Fields { get; }
         public Dictionary<string, List<FieldInfo>> FieldsCombined { get; }
-        public int[] RequiredData { get; }
+        public (int, OutputType)[] RequiredData { get; }
         public List<string> ColumnNames { get; }
         public List<string> ColumnMetrics { get; }
 
-        public WorksheetInfo(string name, List<FieldInfo> fields, Dictionary<string, List<FieldInfo>> fieldsCombined, int[] requiredData, List<string> columnNames, List<string> columnMetrics)
+        public WorksheetInfo(string name, List<FieldInfo> fields, Dictionary<string, List<FieldInfo>> fieldsCombined, (int, OutputType)[] requiredData, List<string> columnNames, List<string> columnMetrics)
         {
             Name = name;
             Fields = fields;
