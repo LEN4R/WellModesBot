@@ -1,9 +1,9 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.DependencyInjection;
+﻿
 using OfficeOpenXml;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text.Json;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -16,36 +16,36 @@ using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Exceptions;
 using Telegram.Bot.Extensions.Polling;
 using Newtonsoft.Json;
+using Telegram.Bot.Types.InputFiles;
 
 namespace WellModesBot
 {
     struct BotUpdate
     {
-        public string messageText;
-        public long chatId;
+        public string data;
+        public string text;
+        public long id;
         public string? username;
-        public string firstname;
-        public string lastname;
     }
     class Program
-    {
-        private static string token = "5348869621:AAFeOl55384vMInbTORGsZwo9YVn-NoEv9w"; //WellModesBot
-        //private static string token = "5333261863:AAEm0hBmW13UOuu2weGKZqlSHx3Nk7-4tlg"; // TestLEN4RBot
+    { 
+        //private static string token = "5348869621:AAFeOl55384vMInbTORGsZwo9YVn-NoEv9w"; //WellModesBot
+        private static string token = "5333261863:AAEm0hBmW13UOuu2weGKZqlSHx3Nk7-4tlg"; // TestLEN4RBot
 
-        private static readonly string InstructionText = $"\U00000031\U000020E3 Введите номер скважины, бот выведит данные по скважине.\n" +
+        private static readonly string InstructionText = $"\U00000031\U000020E3 Введите номер скважины, бот выводит режимные данные по скважине.\n" +
                                                          $"\U00000032\U000020E3 Если номер скважины совпадает в нескольких месторождениях, то бот предложит выбор выгрузки данных.\n\n" +
-                                                         $"\U00002139 Для бювстрого вывода даннвх возможен ввод: [номер скважины]+[начало месторождения]. \n\U000025B6 <b>Бот не привязан к регистру!</b>\U0001F4AA \n\n " +
+                                                         $"\U00002139 Для быстрого вывода данных возможен ввод: [номер скважины]+[начало названия месторождения]. \n\U000025B6 <b>Бот не привязан к регистру!</b>\U0001F4AA \n\n " +
                                                          $"\U000026A0 Бот не воспринимает '*', для получения информации скважин с индексом, неодходимо ввеcти <b>Индекс!</b>";
 
         private static readonly string VersionText = $"<b>[21.04.2022 Версия: 1.0.0 (Beta)]</b> \n \U000025AA Добавлена возможность вывода скважин с разными месторождениями. \n\n" +
-                                                     $"<b>[23.04.2022 Версия: 1.0.1]</b> \n \U000025AA При выводе данных добавлены единицы изменерия. \n \U000025AA Убран баг некорректного вывода скважин. \n\n " +
-                                                     $"<b>[25.04.2022 Версия: 1.0.1.1]</b> \n \U000025AA Все текстовые команды переписаны в меню. \n \U000025AA Вывод скважин с разными местородениями в качестве кнопок. \n\n " +
-                                                     $"<b>[28.04.2022 Версия: 1.0.2]</b> \n \U000025AA Код полностью переписан под API.TelegramBot v17. WellModesBot адаптирован под хостинг, теперь доступен 24/7.  \n\n " +
-                                                     $"<b>[03.05.2022 Версия: 1.0.3]</b> \n \U000025AA Добавлена поддержка нагнетательных скважин.";
+                                                     $"<b>[23.04.2022 Версия: 1.0.1]</b> \n \U000025AA Добавлены единицы изменерия. \n \U000025AA Убран баг некорректного вывода скважин. \n\n " +
+                                                     $"<b>[25.04.2022 Версия: 1.0.1.1]</b> \n \U000025AA Все текстовые команды, включая вывод скважин с разными месторождениями, переписаны в удобное кнопочное меню. \n\n " +
+                                                     $"<b>[28.04.2022 Версия: 1.0.2]</b> \n \U000025AA Код переписан под API.TelegramBot v17 и адаптирован под хостинг. Теперь бот доступен 24/7.  \n\n " +
+                                                     $"<b>[03.05.2022 Версия: 1.0.3]</b> \n \U000025AA Добавлена поддержка вывода режимных данных нагнетательных скважин.";
 
         private static readonly string InfoText = $"\U0001F4C5 Дата создания бота: <b>20.04.2022</b>\n" +
-                                                  $"\U0001F4BB Текущая версия бота: <b>1.0.3</b>\n" +
-                                                  $"\U0001F4BE База данных от <b>05.2022</b>\n\n \U0000270F Разработка:\n<b><i>\U0001F518LEN4R\n\U0001F518elemaunt\n\U0001F518Favelin</i></b>";
+                                                  $"\U0001F4BB Версия бота: <b>1.0.3 (Beta)</b>\n" +
+                                                  $"\U0001F4BE Технологические режимы от <b>05.2022</b>";
 
         private static string Url = "https://v2.d-f.pw/app/application/6310/";
         private static TelegramBotClient client;
@@ -61,8 +61,7 @@ namespace WellModesBot
             GetData();
             client = new TelegramBotClient(token); // Токен бота
             using var cts = new CancellationTokenSource(); // Токен отмены
-
-            var receiverOptions = new ReceiverOptions { AllowedUpdates = new[] { UpdateType.CallbackQuery, UpdateType.Message } };  // Настройка получении обновлени
+            var receiverOptions = new ReceiverOptions { AllowedUpdates = new[] { UpdateType.CallbackQuery, UpdateType.Message }};  // Настройка получении обновлени
             client.StartReceiving(HandleUpdatesAsync, HandleErrorAsync, receiverOptions, cancellationToken: cts.Token); // Функция получении обновлении от Telegram
 
             // Проверка на запуск
@@ -85,22 +84,27 @@ namespace WellModesBot
             // Метод обработки обновление бота
             async Task HandleUpdatesAsync(ITelegramBotClient сlient, Update update, CancellationToken cancellationToken)
             {
-
                 if (update.Type == UpdateType.Message && update?.Message?.Text != null)
                 {
                     await HandleMessage(сlient, update.Message);
-                    var _botUpdate = new BotUpdate
+                    if (update.Message.Chat.Id != 947161854)
                     {
-                        chatId = update.Message.Chat.Id,
-                        messageText = update.Message.Text,
-                        username = update.Message.Chat.Username,
-                        firstname = update.Message.From.FirstName,
-                        lastname = update.Message.From.LastName,
-                    };
-                    botUpdate.Add(_botUpdate);
-                    var botUpdatesString = JsonConvert.SerializeObject(botUpdate);
-                    System.IO.File.WriteAllText(logUsers, botUpdatesString);
-                    return;
+                        var _botUpdate = new BotUpdate
+                        {   
+                            id = update.Message.Chat.Id,
+                            data = update.Message.Date.Day + "." + update.Message.Date.Month + "." + update.Message.Date.Year + " " + update.Message.Date.Hour + ":" + update.Message.Date.Minute,
+                            text = update.Message.Text,
+                            username = update.Message.Chat.Username +" "+ update.Message.From.FirstName + " " + update.Message.From.LastName,
+                        };
+                        botUpdate.Add(_botUpdate);
+                        var botUpdatesString = JsonConvert.SerializeObject(botUpdate);
+                        System.IO.File.WriteAllText(logUsers, botUpdatesString);
+                        return;
+                    }
+                    else
+                    {
+                        //await client.SendTextMessageAsync(update.Message.Chat.Id, text: $"Неавторизованный пользователь", parseMode: ParseMode.Html);
+                    }
                 }
                 if (update.Type == UpdateType.CallbackQuery)
                 {
@@ -124,76 +128,49 @@ namespace WellModesBot
                     await client.SendPhotoAsync(
                     msg.Chat.Id,
                     photo: "https://raw.githubusercontent.com/LEN4R/WellModesBot/main/pic/logo.jpg",
-                    /*caption: "text";*/ parseMode: ParseMode.Html);
-                    await client.SendTextMessageAsync(msg.Chat.Id, text: $"\U0001F44B Здравствуйте {msg.From.LastName} {msg.From.FirstName}!\n\U0001F916 Меня зовут <u>WellModesBot</u>, я телеграмм бот!", parseMode: ParseMode.Html);
+                    caption: $"\U0001F44B Здравствуйте {msg.From.LastName} {msg.From.FirstName}!\n\U0001F916 Меня зовут <u>{client.GetMeAsync().Result.FirstName}</u>, я телеграмм бот! ", parseMode: ParseMode.Html);
+                    await client.SendTextMessageAsync(msg.Chat.Id, text: $"\U0001F310 Для вызова меню отправьте <b>/help</b>.", parseMode: ParseMode.Html);
                     await client.SendTextMessageAsync(msg.Chat.Id, text: $"\U00002139 Для начала работы <b>отправьте мне номер скважины</b>.", parseMode: ParseMode.Html);
-                    await client.SendTextMessageAsync(msg.Chat.Id, text: $"\U0001F310 Чтобы вызвать меню, отправьте <b>'/help'</b>.", parseMode: ParseMode.Html);
                     return;
                 }
-                else
+
+                if (msg.Text == "log" || msg.Text == "Log")
                 {
-                    if (msg.Text == "menu" || msg.Text == "Menu" || msg.Text == "Меню" || msg.Text == "меню" || msg.Text == "/help" || msg.Text == "help" || msg.Text == "Help")
+                    if (msg.Chat.Id == 947161854)
                     {
-                        markup = new InlineKeyboardMarkup(
-                            new[]
-                            {
+                        await using Stream fileUserLog = System.IO.File.OpenRead(logUsers);
+                        Message message = await client.SendDocumentAsync(msg.Chat.Id, document: new InputOnlineFile(content: fileUserLog, fileName: "LogUsers.json"));
+                        return;
+                    }
+
+                }
+
+                if (msg.Text == "menu" || msg.Text == "Menu" || msg.Text == "Меню" || msg.Text == "меню" || msg.Text == "/help" || msg.Text == "help" || msg.Text == "Help")
+                {
+                    markup = new InlineKeyboardMarkup(
+                        new[]
+                        {
                                 new []{InlineKeyboardButton.WithCallbackData("\U00002755 Инструкция по боту", "instruction")},
-                                new []{InlineKeyboardButton.WithCallbackData("\U00002139 Информация о боте", "info")},
+                                new []{InlineKeyboardButton.WithCallbackData("\U00002139 Информация по боту", "info")},
                                 new []{InlineKeyboardButton.WithCallbackData("\U0000231B История изменении", "version")},
                                 new []
                                 {
                                     InlineKeyboardButton.WithUrl("\U0000270D Обратная связь","https://t.me/len4r"),
-                                    InlineKeyboardButton.WithUrl("\U00002709 VK.com","https://vk.com/len4r")
+                                    InlineKeyboardButton.WithCallbackData("\U00002709 Контакты","contact")
                                 }
-                            });
-                        await SendMessage(msg.Chat.Id, "\U00002705 Выберите опцию:", markup: markup);
-                        return;
-                    }
-                    await ProcessMessage(msg, markup);
+                        });
+                    await SendMessage(msg.Chat.Id, "\U00002705 Пожалуйста, выберите опцию:", markup: markup);
+                    return;
                 }
-            }
-
-            async Task ProcessMessage(Message msg, InlineKeyboardMarkup markup)
-            {
-                if (_allFieldsCombined.TryGetValue(msg.Text, out var wellsList))
-                {
-                    var message = new StringBuilder();
-                    if (wellsList.Count > 1)
-                    {
-                        message.Append("\U0001F50E Пожалуйста, выберите скважину:");
-                        markup = new InlineKeyboardMarkup(wellsList.Select(x => new[] { InlineKeyboardButton.WithCallbackData(_worksheetsList[x.WorksheetNumber].Name + " " + x.FullName, _allFields.IndexOf(x).ToString()) }).ToArray());
-                    }
-                    else
-                    {
-                        PrintFieldDataByColumnIndexes(wellsList[0], message, _worksheetsList[wellsList[0].WorksheetNumber]);
-                    }
-                    await SendMessage(msg.Chat.Id, message.ToString(), markup: markup);
-                }
-                else
-                {
-                    var message = new StringBuilder();
-                    var firstField = _allFields.FirstOrDefault(x => x.FullName.StartsWith(msg.Text, StringComparison.OrdinalIgnoreCase));
-
-                    if (firstField != null)
-                    {
-                        PrintFieldDataByColumnIndexes(firstField, message, _worksheetsList[firstField.WorksheetNumber]);
-                        await SendMessage(msg.Chat.Id, message.ToString());
-                    }
-                    else
-                    {
-                        await SendMessage(msg.Chat.Id, "\U000026A0 ОШИБКА! Такой скважины нет!");
-                    }
-                }
+                await ProcessMessage(msg, markup);
             }
 
             async Task HandleCallbackQuery(ITelegramBotClient сlient, CallbackQuery callbackQuery)
             {
                 var data = callbackQuery.Data;
-
                 switch (data)
                 {
                     case "instruction":
-                        //await client.SendTextMessageAsync(callbackQuery.Message.Chat.Id, text: InstructionText);
                         await client.SendPhotoAsync(callbackQuery.Message.Chat.Id,
                         photo: "https://raw.githubusercontent.com/LEN4R/WellModesBot/main/pic/pic_instruction.jpg",
                         caption: InstructionText,
@@ -211,9 +188,48 @@ namespace WellModesBot
                         caption: VersionText,
                         parseMode: ParseMode.Html);
                         break;
+                    case "contact":
+                        await сlient.SendContactAsync(callbackQuery.Message.Chat.Id,
+                        phoneNumber: "+79678888663",
+                        firstName: "Галиев",
+                        lastName: "Ленар");
+                        break;
                     default:
                         await SendFieldInfoByIndex(int.Parse(data), callbackQuery.Message.Chat.Id);
                         break;
+                }
+            }
+
+            async Task ProcessMessage(Message msg, InlineKeyboardMarkup markup)
+            {
+                var message = new StringBuilder();
+                if (_allFieldsCombined.TryGetValue(msg.Text, out var wellsList))
+                {
+                    // Отправка данных с выбором месторождении.
+                    if (wellsList.Count > 1)
+                    {
+                        message.Append("\U0001F50E Пожалуйста, выберите скважину:");
+                        markup = new InlineKeyboardMarkup(wellsList.Select(x => new[] {InlineKeyboardButton.WithCallbackData(_worksheetsList[x.WorksheetNumber].Name + " " + x.FullName, _allFields.IndexOf(x).ToString())}).ToArray());
+                    }
+                    else
+                    {
+                        PrintFieldDataByColumnIndexes(wellsList[0], message, _worksheetsList[wellsList[0].WorksheetNumber]);
+                    }
+                    await SendMessage(msg.Chat.Id, message.ToString(), markup: markup);
+                }
+                else
+                {
+                    // Отправка данных без выбора месторождении.
+                    var firstField = _allFields.FirstOrDefault(x => x.FullName.StartsWith(msg.Text, StringComparison.OrdinalIgnoreCase));
+                    if (firstField != null)
+                    {
+                        PrintFieldDataByColumnIndexes(firstField, message, _worksheetsList[firstField.WorksheetNumber]);
+                        await SendMessage(msg.Chat.Id, message.ToString());
+                    }
+                    else
+                    {
+                        await SendMessage(msg.Chat.Id, "\U0000274C ОШИБКА! Такой скважины нет!");
+                    }
                 }
             }
 
@@ -229,6 +245,7 @@ namespace WellModesBot
             }
         }
 
+        // Сборка данных с массивов данных.
         private static async Task SendFieldInfoByIndex(int index, long chatId)
         {
             var firstField = _allFields[index];
@@ -252,14 +269,24 @@ namespace WellModesBot
             foreach ((int, OutputType) index in info.RequiredData)
             {
                 var queryIndex = query[index.Item1];
+
                 switch (index.Item2)
                 {
                     case OutputType.Default:
                         message.AppendLine($"{queryIndex.key}: {queryIndex.value} {queryIndex.metrics}");
                         break;
+
                     case OutputType.Number:
-                        message.AppendLine($"{queryIndex.key}: {double.Parse(queryIndex.value.ToString()).ToString("#.##")} {queryIndex.metrics}");
+                        if (queryIndex.value != null)
+                        {
+                            message.AppendLine($"{queryIndex.key}: {double.Parse(queryIndex.value.ToString()).ToString("#.##")} {queryIndex.metrics}");
+                        }
+                        else
+                        {
+                            message.AppendLine($"{queryIndex.key}: {queryIndex.value} {queryIndex.metrics}");
+                        }
                         break;
+
                     default:
                         break;
                 }
@@ -269,60 +296,61 @@ namespace WellModesBot
         public static void GetData()
         {
             //var path = Directory.EnumerateFiles(Environment.CurrentDirectory).FirstOrDefault(x => x.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase));
-            var path = @"Info_05_2022.xlsx";
-            var locationWellsDoc = @"locationOfWells.xlsx";
-            Console.WriteLine($"Файл загружен:{path} + {locationWellsDoc}");
+            var path = @"ТРТПП_0522.xlsx";
+            Console.WriteLine($"Файл загружен:{path}");
             ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
 
             using (var xlPackage = new ExcelPackage(new FileInfo(path)))
             {
                 var worksheetsList = new List<WorksheetInfo>();
-
-                worksheetsList.Add(ReadWorksheet(xlPackage, 0, new[] { (5, OutputType.Default), 
-                                                                       (7, OutputType.Default),
-                                                                       (8, OutputType.Default),
-                                                                       (3, OutputType.Default),
-                                                                       (17, OutputType.Default),
-                                                                       (11, OutputType.Default),
-                                                                       (14, OutputType.Default),
-                                                                       (15, OutputType.Default),
-                                                                       (18, OutputType.Default),
-                                                                       (22, OutputType.Default),
-                                                                       (23, OutputType.Default),
-                                                                       (33, OutputType.Default),
-                                                                       (34, OutputType.Default),
-                                                                       (38, OutputType.Default),
-                                                                       (39, OutputType.Default),
-                                                                       (41, OutputType.Default),
-                                                                       (51, OutputType.Default),
-                                                                       (64, OutputType.Default),
-                                                                       (54, OutputType.Number),
-                                                                       (55, OutputType.Number),
-                                                                       (56, OutputType.Number)
+                worksheetsList.Add(ReadWorksheet(xlPackage, 0, new[] { (5, OutputType.Default),   // Месторождение
+                                                                       (7, OutputType.Default),   // № скв
+                                                                       (8, OutputType.Default),   // Куст
+                                                                       (3, OutputType.Default),   // Цех
+                                                                       (17, OutputType.Default),  // иам. экспл. колон.
+                                                                       (11, OutputType.Default),  // Объект разработки/пласт
+                                                                       (14, OutputType.Default),  // верх
+                                                                       (15, OutputType.Default),  // низ
+                                                                       (16, OutputType.Default),  // Удл. на в.д.
+                                                                       (18, OutputType.Default),  // Тек. забой
+                                                                       (22, OutputType.Default),  // Марка насоса
+                                                                       (23, OutputType.Default),  // Глубина насоса
+                                                                       (33, OutputType.Default),  // МРП
+                                                                       (34, OutputType.Default),  // Доп. оборуд.
+                                                                       (38, OutputType.Default),  // Ндин
+                                                                       (39, OutputType.Default),  // Рзат. при Ндин.
+                                                                       (41, OutputType.Number),  // Рдин. на ТМС
+                                                                       (51, OutputType.Default),  // Рпл. внк
+                                                                       (64, OutputType.Default),  // Сост. на конец мес/
+                                                                       (54, OutputType.Number),  // Qж.ф.
+                                                                       (55, OutputType.Number),  // % воды
+                                                                       (56, OutputType.Number)   // Qн.ф.
                                                                       })); //ТРДС
-                worksheetsList.Add(ReadWorksheet(xlPackage, 1, new[] { (5, OutputType.Default),
-                                                                       (7, OutputType.Default),
-                                                                       (8, OutputType.Default),
-                                                                       (3, OutputType.Default),
-                                                                       (11, OutputType.Default),
-                                                                       (12, OutputType.Default),
-                                                                       (19, OutputType.Default),
-                                                                       (20, OutputType.Default),
-                                                                       (23, OutputType.Default),
-                                                                       (24, OutputType.Default),
-                                                                       (25, OutputType.Default),
-                                                                       (26, OutputType.Default),
-                                                                       (30, OutputType.Default),
-                                                                       (33, OutputType.Default),
-                                                                       (113, OutputType.Default),
-                                                                       (41, OutputType.Default),
-                                                                       (48, OutputType.Default),
-                                                                       (45, OutputType.Default),
-                                                                       (44, OutputType.Default),
-                                                                       (54, OutputType.Number),
-                                                                       (38, OutputType.Default),
-                                                                       (34, OutputType.Default),
-                                                                       (115, OutputType.Number),
+
+                worksheetsList.Add(ReadWorksheet(xlPackage, 1, new[] { (5, OutputType.Default),   // Месторождение
+                                                                       (7, OutputType.Default),   // № скв
+                                                                       (8, OutputType.Default),   // Куст
+                                                                       (3, OutputType.Default),   // Цех
+                                                                       (11, OutputType.Default),  // Блок 
+                                                                       (12, OutputType.Default),  // Объект разработки
+                                                                       (19, OutputType.Default),  // верх
+                                                                       (20, OutputType.Default),  // низ
+                                                                       (21, OutputType.Default),  // Удл. на в.д.
+                                                                       (23, OutputType.Default),  // Иск. забой
+                                                                       (24, OutputType.Default),  // Тек. забой
+                                                                       (25, OutputType.Default),  // СЭ/Характер лифта
+                                                                       (26, OutputType.Default),  // Длина подвески НКТ
+                                                                       (30, OutputType.Default),  // Глубина пакера
+                                                                       (33, OutputType.Default),  // Доп.оборуд. (длина хвост.)
+                                                                       (113, OutputType.Default), // МРП
+                                                                       (41, OutputType.Default),  // Рзаб. ВНК.
+                                                                       (48, OutputType.Default),  // Рпл. внк
+                                                                       (45, OutputType.Default),  // Нст.
+                                                                       (44, OutputType.Default),  // Руст. стат.
+                                                                       (54, OutputType.Default),  // Q
+                                                                       (38, OutputType.Default),  // Pл.
+                                                                       (34, OutputType.Default),  // Dшт.
+                                                                       (115, OutputType.Default)  // Потребная закачка
                                                                        })); //ТРНС
 
                 _worksheetsList = worksheetsList;
@@ -334,16 +362,20 @@ namespace WellModesBot
             }
 
             /*
-            using (var xlPackage = new ExcelPackage(new FileInfo(locationWellsDoc)));
+            List<Item> items = new List<Item>();
+            var fileLocationWells = @"locationOfWells.xlsx";
+            Console.WriteLine($"Файл загружен:{fileLocationWells}");
+            FileInfo fileinfo = new FileInfo(fileLocationWells);
+            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+
+            using (ExcelPackage excelPackage = new ExcelPackage(fileinfo))
             {
-                Dictionary<string, Action<string, locationWellsDoc>> MapFieldSetters { get; set; } =  new Dictionary<string, Action<string, locationWellsDoc>>()
-                {
-                    { "First Name", (s,g) => g.cnst_first_nm = s },
-                    { "Last Name", (s,g) => g.cnst_Last_nm = s },
-                };
+                ExcelWorksheets excelWorksheets = excelPackage.Workbook.Worksheets.First();
+
             }
             */
         }
+
 
         private static WorksheetInfo ReadWorksheet(ExcelPackage xlPackage, int worksheetIndex, (int, OutputType)[] requiredData)
         {
@@ -405,6 +437,5 @@ namespace WellModesBot
 
             return new WorksheetInfo(myWorksheet.Name, worksheetFields, worksheetFieldsCombined, requiredData, columnNames, columnMetrics);
         }
-
     }
 }
