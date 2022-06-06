@@ -33,7 +33,7 @@ namespace WellModesBot
         private static string token = "5333261863:AAEm0hBmW13UOuu2weGKZqlSHx3Nk7-4tlg"; // TestLEN4RBot
 
         private static readonly string InstructionText = $"\U00000031\U000020E3 Введите номер скважины, бот выводит режимные данные по скважине.\n" +
-                                                         $"\U00000032\U000020E3 Если номер скважины совпадает в нескольких месторождениях, то бот предложит выбор выгрузки данных.\n\n" +
+                                                         $"\U00000032\U000020E3 Если номер скважины совпадает в нескольких месторождении, бот предложит выбор выгрузки данных.\n\n" +
                                                          $"\U00002139 Для быстрого вывода данных возможен ввод: [номер скважины]+[начало названия месторождения]. \n\U000025B6 <b>Бот не привязан к регистру!</b>\U0001F4AA \n\n " +
                                                          $"\U000026A0 Бот не воспринимает '*', для получения информации скважин с индексом, неодходимо ввеcти <b>Индекс!</b>";
 
@@ -44,8 +44,8 @@ namespace WellModesBot
                                                      $"<b>[03.05.2022 Версия: 1.0.3]</b> \n \U000025AA Добавлена поддержка вывода режимных данных нагнетательных скважин.";
 
         private static readonly string InfoText = $"\U0001F4C5 Дата создания бота: <b>20.04.2022</b>\n" +
-                                                  $"\U0001F4BB Версия бота: <b>1.0.3 (Beta)</b>\n" +
-                                                  $"\U0001F4BE Технологические режимы от <b>05.2022</b>";
+                                                  $"\U0001F4BB Версия бота: <b>1.0.3.1 (Beta)</b>\n" +
+                                                  $"\U0001F4BE Технологические режимы от <b>06.2022</b>";
 
         private static string Url = "https://v2.d-f.pw/app/application/6310/";
         private static TelegramBotClient client;
@@ -142,7 +142,6 @@ namespace WellModesBot
                         Message message = await client.SendDocumentAsync(msg.Chat.Id, document: new InputOnlineFile(content: fileUserLog, fileName: "LogUsers.json"));
                         return;
                     }
-
                 }
 
                 if (msg.Text == "menu" || msg.Text == "Menu" || msg.Text == "Меню" || msg.Text == "меню" || msg.Text == "/help" || msg.Text == "help" || msg.Text == "Help")
@@ -269,15 +268,36 @@ namespace WellModesBot
             foreach ((int, OutputType) index in info.RequiredData)
             {
                 var queryIndex = query[index.Item1];
-
                 switch (index.Item2)
                 {
                     case OutputType.Default:
-                        message.AppendLine($"{queryIndex.key}: {queryIndex.value} {queryIndex.metrics}");
+                        if (queryIndex.key == "МРП")
+                        {
+                            string? queryIndexinput = queryIndex.value.ToString();
+                            bool mrpBool = int.TryParse(queryIndexinput, out var number);
+                            if (mrpBool == true)
+                                message.AppendLine($"{queryIndex.key}: {Int32.Parse(queryIndex.value.ToString()) + DateTime.Now.Day - 1} {queryIndex.metrics} на {DateTime.Now.ToString("dd.MM.yyyy")}");
+                            else
+                                message.AppendLine($"{queryIndex.key}: {queryIndex.value} {queryIndex.metrics} на 01.06.2022");
+                        }
+                        else if (queryIndex.key == "верх")
+                        {
+                            queryIndex.key = "Вверх. интер. перф.";
+                            message.AppendLine($"{queryIndex.key}: {queryIndex.value} {queryIndex.metrics}");
+                        }
+                        else if (queryIndex.key == "низ")
+                        {
+                            queryIndex.key = "Нижн. интер. перф.";
+                            message.AppendLine($"{queryIndex.key}: {queryIndex.value} {queryIndex.metrics}");
+                        }
+                        else
+                        {
+                            message.AppendLine($"{queryIndex.key}: {queryIndex.value} {queryIndex.metrics}");
+                        }
                         break;
-
                     case OutputType.Number:
-                        if (queryIndex.value != null)
+                        bool numbertwo = double.TryParse(queryIndex.value.ToString(), out var result);
+                        if (numbertwo)
                         {
                             message.AppendLine($"{queryIndex.key}: {double.Parse(queryIndex.value.ToString()).ToString("#.##")} {queryIndex.metrics}");
                         }
@@ -286,7 +306,6 @@ namespace WellModesBot
                             message.AppendLine($"{queryIndex.key}: {queryIndex.value} {queryIndex.metrics}");
                         }
                         break;
-
                     default:
                         break;
                 }
@@ -296,7 +315,7 @@ namespace WellModesBot
         public static void GetData()
         {
             //var path = Directory.EnumerateFiles(Environment.CurrentDirectory).FirstOrDefault(x => x.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase));
-            var path = @"ТРТПП_0522.xlsx";
+            var path = @"Info.xlsx";
             Console.WriteLine($"Файл загружен:{path}");
             ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
 
@@ -307,7 +326,7 @@ namespace WellModesBot
                                                                        (7, OutputType.Default),   // № скв
                                                                        (8, OutputType.Default),   // Куст
                                                                        (3, OutputType.Default),   // Цех
-                                                                       (17, OutputType.Default),  // иам. экспл. колон.
+                                                                       (17, OutputType.Default),  // Диам. экспл. колон.
                                                                        (11, OutputType.Default),  // Объект разработки/пласт
                                                                        (14, OutputType.Default),  // верх
                                                                        (15, OutputType.Default),  // низ
@@ -319,14 +338,13 @@ namespace WellModesBot
                                                                        (34, OutputType.Default),  // Доп. оборуд.
                                                                        (38, OutputType.Default),  // Ндин
                                                                        (39, OutputType.Default),  // Рзат. при Ндин.
-                                                                       (41, OutputType.Number),  // Рдин. на ТМС
+                                                                       (41, OutputType.Number),   // Рдин. на ТМС
                                                                        (51, OutputType.Default),  // Рпл. внк
                                                                        (64, OutputType.Default),  // Сост. на конец мес/
-                                                                       (54, OutputType.Number),  // Qж.ф.
-                                                                       (55, OutputType.Number),  // % воды
-                                                                       (56, OutputType.Number)   // Qн.ф.
-                                                                      })); //ТРДС
-
+                                                                       (54, OutputType.Number),   // Qж.ф.
+                                                                       (55, OutputType.Number),   // % воды
+                                                                       (56, OutputType.Number),   // Qн.ф.
+                                                                       })); //ТРДС
                 worksheetsList.Add(ReadWorksheet(xlPackage, 1, new[] { (5, OutputType.Default),   // Месторождение
                                                                        (7, OutputType.Default),   // № скв
                                                                        (8, OutputType.Default),   // Куст
@@ -350,7 +368,7 @@ namespace WellModesBot
                                                                        (54, OutputType.Default),  // Q
                                                                        (38, OutputType.Default),  // Pл.
                                                                        (34, OutputType.Default),  // Dшт.
-                                                                       (115, OutputType.Default)  // Потребная закачка
+                                                                       (115, OutputType.Default), // Потребная закачка
                                                                        })); //ТРНС
 
                 _worksheetsList = worksheetsList;
@@ -360,20 +378,6 @@ namespace WellModesBot
                     .Select(x => (x.Key, x.SelectMany(y => y.Value)))
                     .ToDictionary(x => x.Key, x => x.Item2.ToList());
             }
-
-            /*
-            List<Item> items = new List<Item>();
-            var fileLocationWells = @"locationOfWells.xlsx";
-            Console.WriteLine($"Файл загружен:{fileLocationWells}");
-            FileInfo fileinfo = new FileInfo(fileLocationWells);
-            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
-
-            using (ExcelPackage excelPackage = new ExcelPackage(fileinfo))
-            {
-                ExcelWorksheets excelWorksheets = excelPackage.Workbook.Worksheets.First();
-
-            }
-            */
         }
 
 
