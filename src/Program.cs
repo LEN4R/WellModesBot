@@ -29,8 +29,8 @@ namespace WellModesBot
     }
     class Program
     { 
-        //private static string token = "5348869621:AAFeOl55384vMInbTORGsZwo9YVn-NoEv9w"; //WellModesBot
-        private static string token = "5333261863:AAEm0hBmW13UOuu2weGKZqlSHx3Nk7-4tlg"; // TestLEN4RBot
+        private static string token = "5348869621:AAFeOl55384vMInbTORGsZwo9YVn-NoEv9w"; //WellModesBot
+        //private static string token = "5333261863:AAEm0hBmW13UOuu2weGKZqlSHx3Nk7-4tlg"; // TestLEN4RBot
 
         private static readonly string InstructionText = $"\U00000031\U000020E3 Введите номер скважины, бот выводит режимные данные по скважине.\n" +
                                                          $"\U00000032\U000020E3 Если номер скважины совпадает в нескольких месторождении, бот предложит выбор выгрузки данных.\n\n" +
@@ -41,10 +41,11 @@ namespace WellModesBot
                                                      $"<b>[23.04.2022 Версия: 1.0.1]</b> \n \U000025AA Добавлены единицы изменерия. \n \U000025AA Убран баг некорректного вывода скважин. \n\n " +
                                                      $"<b>[25.04.2022 Версия: 1.0.1.1]</b> \n \U000025AA Все текстовые команды, включая вывод скважин с разными месторождениями, переписаны в удобное кнопочное меню. \n\n " +
                                                      $"<b>[28.04.2022 Версия: 1.0.2]</b> \n \U000025AA Код переписан под API.TelegramBot v17 и адаптирован под хостинг. Теперь бот доступен 24/7.  \n\n " +
-                                                     $"<b>[03.05.2022 Версия: 1.0.3]</b> \n \U000025AA Добавлена поддержка вывода режимных данных нагнетательных скважин.";
+                                                     $"<b>[03.05.2022 Версия: 1.0.3]</b> \n \U000025AA Добавлена поддержка вывода режимных данных нагнетательных скважин.  \n\n " +
+                                                     $"<b>[07.05.2022 Версия: 1.0.4]</b> \n \U000025AA Проработан вывод всех возможных вариантов по запросу. \n \U000025AA Расчет МРП производится на текущий день. \n \U000025AA Сокращение сиволов до двух знаков после запятой.";
 
         private static readonly string InfoText = $"\U0001F4C5 Дата создания бота: <b>20.04.2022</b>\n" +
-                                                  $"\U0001F4BB Версия бота: <b>1.0.3.1 (Beta)</b>\n" +
+                                                  $"\U0001F4BB Версия бота: <b>1.0.4 (Beta)</b>\n" +
                                                   $"\U0001F4BE Технологические режимы от <b>06.2022</b>";
 
         private static string Url = "https://v2.d-f.pw/app/application/6310/";
@@ -330,7 +331,7 @@ namespace WellModesBot
                                                                        (11, OutputType.Default),  // Объект разработки/пласт
                                                                        (14, OutputType.Default),  // верх
                                                                        (15, OutputType.Default),  // низ
-                                                                       (16, OutputType.Default),  // Удл. на в.д.
+                                                                       (16, OutputType.Number),  // Удл. на в.д.
                                                                        (18, OutputType.Default),  // Тек. забой
                                                                        (22, OutputType.Default),  // Марка насоса
                                                                        (23, OutputType.Default),  // Глубина насоса
@@ -353,7 +354,7 @@ namespace WellModesBot
                                                                        (12, OutputType.Default),  // Объект разработки
                                                                        (19, OutputType.Default),  // верх
                                                                        (20, OutputType.Default),  // низ
-                                                                       (21, OutputType.Default),  // Удл. на в.д.
+                                                                       (21, OutputType.Number),  // Удл. на в.д.
                                                                        (23, OutputType.Default),  // Иск. забой
                                                                        (24, OutputType.Default),  // Тек. забой
                                                                        (25, OutputType.Default),  // СЭ/Характер лифта
@@ -365,7 +366,7 @@ namespace WellModesBot
                                                                        (48, OutputType.Default),  // Рпл. внк
                                                                        (45, OutputType.Default),  // Нст.
                                                                        (44, OutputType.Default),  // Руст. стат.
-                                                                       (54, OutputType.Default),  // Q
+                                                                       (54, OutputType.Number),  // Q
                                                                        (38, OutputType.Default),  // Pл.
                                                                        (34, OutputType.Default),  // Dшт.
                                                                        (115, OutputType.Default), // Потребная закачка
@@ -415,9 +416,6 @@ namespace WellModesBot
                 if (string.IsNullOrWhiteSpace(numberStr) || string.IsNullOrWhiteSpace(fieldNameStr))
                     continue;
 
-                if (!worksheetFieldsCombined.TryGetValue(numberStr.ToLowerInvariant(), out List<FieldInfo> list))
-                    list = worksheetFieldsCombined[numberStr] = new List<FieldInfo>();
-
                 var data = new List<object>();
 
                 for (int k = 2; k <= totalColumns; k++)
@@ -432,10 +430,19 @@ namespace WellModesBot
                     FieldName = fieldNameStr,
                     RowIndex = i,
                     Data = data,
-                    WorksheetNumber = worksheetIndex // -1
+                    WorksheetNumber = worksheetIndex
                 };
 
-                list.Add(fieldInfo);
+                var numberBuilder = new StringBuilder(numberStr);
+                while (numberBuilder.Length > 0)
+                {
+                    var key = numberBuilder.ToString().ToLowerInvariant();
+                    if (!worksheetFieldsCombined.TryGetValue(key, out List<FieldInfo> list))
+                        list = worksheetFieldsCombined[key] = new List<FieldInfo>();
+
+                    list.Add(fieldInfo);
+                    numberBuilder.Remove(numberBuilder.Length - 1, 1);
+                }
                 worksheetFields.Add(fieldInfo);
             }
 
