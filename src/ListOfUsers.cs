@@ -6,10 +6,8 @@ using System.Threading.Tasks;
 
 namespace WellModesBot
 {
-    public enum OutputType
+    class ListOfUsers
     {
-        Default,
-        Number,
-        MRP
+        Dictionary<int, string> listOfUsers = new Dictionary<int, string>();
     }
 }
