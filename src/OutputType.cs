@@ -10,6 +10,8 @@ namespace WellModesBot
     {
         Default,
         Number,
-        MRP
+        MRP,
+        KNS,
+        PVR
     }
 }

@@ -3,13 +3,11 @@ using OfficeOpenXml;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Text.Json;
 using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Telegram.Bot;
-using Telegram.Bot.Args;
 using Telegram.Bot.Types.ReplyMarkups;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
@@ -28,43 +26,41 @@ namespace WellModesBot
         public string? username;
     }
     class Program
-    { 
+    {
         private static string token = "5348869621:AAFeOl55384vMInbTORGsZwo9YVn-NoEv9w"; //WellModesBot
-        //private static string token = "5333261863:AAEm0hBmW13UOuu2weGKZqlSHx3Nk7-4tlg"; // TestLEN4RBot
-        //private static string token = "5454573954:AAHjA5Fcf_LphBjwgdhg2vi-TTlZKfrI8M8"; // WMBot
+        //private static string token = System.IO.File.ReadAllText("wmbot.txt"); //WMBot
 
-        private static readonly string InstructionText = $"\U00000031\U000020E3 Введите номер скважины, бот выводит режимные данные по скважине.\n" +
-                                                         $"\U00000032\U000020E3 Если номер скважины совпадает в нескольких месторождении, бот предложит выбор выгрузки данных.\n\n" +
+        private static readonly string InstructionText = $"\U00000031\U000020E3 Введите номер скважины, бот выводит режимные данные.\n" +
+                                                         $"\U00000032\U000020E3 Если номер скважины совпадает в нескольких месторождении, бот предложит выбор скважин.\n\n" +
                                                          $"\U00002139 Для быстрого вывода данных возможен ввод: [номер скважины]+[начало названия месторождения]. \n\U000025B6 <b>Бот не привязан к регистру!</b>\U0001F4AA \n\n " +
                                                          $"\U000026A0 Бот не воспринимает '*', для получения информации скважин с индексом, неодходимо ввеcти <b>Индекс!</b>";
 
-        private static readonly string VersionText = $"<b>[21.04.2022 Версия: 1.0.0 (Beta)]</b> \n \U000025AA Добавлена возможность вывода скважин с разными месторождениями. \n\n" +
-                                                     $"<b>[23.04.2022 Версия: 1.0.1]</b> \n \U000025AA Добавлены единицы изменерия. \n \U000025AA Убран баг некорректного вывода скважин. \n\n " +
-                                                     $"<b>[25.04.2022 Версия: 1.0.1.1]</b> \n \U000025AA Все текстовые команды, включая вывод скважин с разными месторождениями, переписаны в удобное кнопочное меню. \n\n " +
-                                                     $"<b>[28.04.2022 Версия: 1.0.2]</b> \n \U000025AA Код переписан под API.TelegramBot v17 и адаптирован под хостинг. Теперь бот доступен 24/7.  \n\n " +
+        private static readonly string VersionText = $"<b>[21.04.2022 Версия: 1.0.0]</b> \n \U000025AA Добавлена возможность вывода скважин с разными месторождениями. \n\n" +
+                                                     $"<b>[23.04.2022 Версия: 1.0.1]</b> \n \U000025AA Добавлены единицы изменерия. \n \U000025AA Реализовано удобное кнопочное меню. \n\n " +
+                                                     $"<b>[28.04.2022 Версия: 1.0.2]</b> \n \U000025AA Код переписан под API.TelegramBot v17 и адаптирован под хостинг (бот доступен 24/7).  \n\n " +
                                                      $"<b>[03.05.2022 Версия: 1.0.3]</b> \n \U000025AA Добавлена поддержка вывода режимных данных нагнетательных скважин.  \n\n " +
-                                                     $"<b>[07.05.2022 Версия: 1.0.4]</b> \n \U000025AA Проработан вывод всех возможных вариантов по запросу. \n \U000025AA Расчет МРП производится на текущий день. \n \U000025AA Сокращение сиволов до двух знаков после запятой.";
+                                                     $"<b>[07.05.2022 Версия: 1.0.4]</b> \n \U000025AA Изменена логика поиска скважин. \n \U000025AA Расчет МРП производится на текущий день. \n \U000025AA Вывод значении с двумя знакоми после запятой.";
 
         private static readonly string InfoText = $"\U0001F4C5 Дата создания бота: <b>20.04.2022</b>\n" +
-                                                  $"\U0001F4BB Версия бота: <b>1.0.4.1 (Beta)</b>\n" +
-                                                  $"\U0001F4BE Технологические режимы от <b>06.2022</b>";
+                                                  $"\U0001F4BB Версия бота: <b>1.0.4.3 (Beta)</b>\n" +
+                                                  $"\U0001F4BE Технологические режимы от <b>07.2022</b>";
 
-        private static string Url = "https://v2.d-f.pw/app/application/6310/";
         private static TelegramBotClient client;
 
         static string logUsers = "logUsers.json";
+        static string userList = @"users.txt";
         static List<BotUpdate> botUpdate = new List<BotUpdate>();
         private static List<WorksheetInfo> _worksheetsList;
         private static List<FieldInfo> _allFields;
         private static Dictionary<string, List<FieldInfo>> _allFieldsCombined;
-         
+
 
         static void Main(string[] args)
         {
             GetData();
             client = new TelegramBotClient(token); // Токен бота
             using var cts = new CancellationTokenSource(); // Токен отмены
-            var receiverOptions = new ReceiverOptions { AllowedUpdates = new[] { UpdateType.CallbackQuery, UpdateType.Message }};  // Настройка получении обновлени
+            var receiverOptions = new ReceiverOptions { AllowedUpdates = new[] { UpdateType.CallbackQuery, UpdateType.Message } };  // Настройка получении обновлени
             client.StartReceiving(HandleUpdatesAsync, HandleErrorAsync, receiverOptions, cancellationToken: cts.Token); // Функция получении обновлении от Telegram
 
             // Проверка на запуск
@@ -92,11 +88,11 @@ namespace WellModesBot
                     await HandleMessage(сlient, update.Message);
                     if (update.Message.Chat.Id != 947161854)
                     {
-                        var timeZoneEKB = update.Message.Date.Hour + 5;
+                        var timeZoneHourEkb = (update.Message.Date.Hour + 5) % 24;
                         var _botUpdate = new BotUpdate
                         {
                             id = update.Message.Chat.Id,
-                            data = update.Message.Date.Day + "." + update.Message.Date.Month + "." + update.Message.Date.Year + " " + timeZoneEKB + ":" + update.Message.Date.Minute,
+                            data = update.Message.Date.Day + "." + update.Message.Date.Month + "." + update.Message.Date.Year + " " + timeZoneHourEkb + ":" + update.Message.Date.Minute,
                             text = update.Message.Text,
                             username = update.Message.Chat.Username + " " + update.Message.From.FirstName + " " + update.Message.From.LastName,
                         };
@@ -118,35 +114,13 @@ namespace WellModesBot
             // Метод обработки сообщении бота
             async Task HandleMessage(ITelegramBotClient сlient, Message msg)
             {
+                // Список пользователей
+                var fileUserList = System.IO.File.ReadAllLines(userList);
                 HashSet<string> listOfUsers = new HashSet<string>();
-                listOfUsers.Add("947161854");      // Галиев Ленар Разимович
-                listOfUsers.Add("612453948");      // Некрасов Олег Юрьевич
-                listOfUsers.Add("1706096698");     // Гатаулин Ильнур Магнавиевич
-                listOfUsers.Add("1804783257");     // Измайлов Марат Ришатович
-                listOfUsers.Add("1565015942");     // Умураков Павел Леонидович
-                listOfUsers.Add("1942782328");     // Романенко Алексей
-                listOfUsers.Add("352457577");      // Елкин Роман Владимирович
-                listOfUsers.Add("1173872037");     // Уразов Тимерлан
-                listOfUsers.Add("910403991");      // Грызунов Иван
-                listOfUsers.Add("784109566");      // Немтинов Антон Алексендрович
-                listOfUsers.Add("5203014986");     // Кадыров Руслан
-                listOfUsers.Add("1034109813");     // Иванов Дмитрий
-                listOfUsers.Add("312233025");      // Зубайров Абубакар
-                listOfUsers.Add("943661886");      // Тевс Николай
-                listOfUsers.Add("1279802150");     // Ахатов Динар
-                listOfUsers.Add("972089337");      // Каптелиннина Диана
-                listOfUsers.Add("617442861");      // Коннов Алексей
-                listOfUsers.Add("321420891");      // Етков Михаил 
-                listOfUsers.Add("388062297");      // Мещерин Максим
-                listOfUsers.Add("1315687761");     // Гайдамакин Вадим
-                listOfUsers.Add("442201101");      // Бронников Данил
-                listOfUsers.Add("2070110513");     // Сткепанов Максим
-                listOfUsers.Add("1988832533");     // Пустовит Олег
-                listOfUsers.Add("5353444882");     // Исаков Виктор
-                listOfUsers.Add("1064749721");     // Ягудин Артур
-                listOfUsers.Add("1918577412");     // Акрамов Нафис
-                listOfUsers.Add("1723427143");     // Бекк Иосиф
-
+                for (var i = 0; i < fileUserList.Length; i++)
+                {
+                    listOfUsers.Add(fileUserList[i]);
+                }
 
                 if (msg.Text == null)
                     return;
@@ -159,23 +133,42 @@ namespace WellModesBot
                     msg.Chat.Id,
                     photo: "https://raw.githubusercontent.com/LEN4R/WellModesBot/main/pic/logo.jpg",
                     caption: $"\U0001F44B Здравствуйте {msg.From.LastName} {msg.From.FirstName}!\n\U0001F916 Меня зовут <u>{client.GetMeAsync().Result.FirstName}</u>, я телеграмм бот! ", parseMode: ParseMode.Html);
-
-                    
-                    if (listOfUsers.TryGetValue(msg.Chat.Id.ToString(), out var nulls))  
+                    if (listOfUsers.TryGetValue(msg.Chat.Id.ToString(), out var null1))
                     {
                         await client.SendTextMessageAsync(msg.Chat.Id, text: $"\U0001F310 Для вызова меню отправьте <b>/help</b>.", parseMode: ParseMode.Html);
                         await client.SendTextMessageAsync(msg.Chat.Id, text: $"\U00002139 Для начала работы <b>отправьте мне номер скважины</b>.", parseMode: ParseMode.Html);
                         return;
                     }
                 }
-                if (listOfUsers.TryGetValue(msg.Chat.Id.ToString(), out var nulls1))
+
+                if (listOfUsers.TryGetValue(msg.Chat.Id.ToString(), out var null2))
                 {
-                    if (msg.Text == "log" || msg.Text == "Log")
+                    if (msg.Chat.Id == 947161854)
                     {
-                        if (msg.Chat.Id == 947161854)
+                        if (msg.Text == "log" || msg.Text == "Log")
                         {
                             await using Stream fileUserLog = System.IO.File.OpenRead(logUsers);
                             Message message = await client.SendDocumentAsync(msg.Chat.Id, document: new InputOnlineFile(content: fileUserLog, fileName: "LogUsers.json"));
+                            return;
+                        }
+
+                        if (msg.Text.IndexOf("reg")> -1)
+                        {
+                            string[] separatingStrings = {" "};
+                            var regUser = msg.Text.Split(separatingStrings, StringSplitOptions.RemoveEmptyEntries);
+                            if (long.TryParse(regUser[1], out var null3))
+                            {
+                                var appendText = Environment.NewLine + regUser[1];
+                                System.IO.File.AppendAllText(userList, appendText);
+                            }
+                            await client.SendTextMessageAsync(msg.Chat.Id = 947161854, text: $"Новый пользователь: {regUser[1]}", parseMode: ParseMode.Html);
+                            return;
+                        }
+
+                        if (msg.Text == "users" || msg.Text == "Users")
+                        {
+                            await using Stream fileUserLog = System.IO.File.OpenRead(userList);
+                            Message message = await client.SendDocumentAsync(msg.Chat.Id, document: new InputOnlineFile(content: fileUserLog, fileName: "UserList.txt"));
                             return;
                         }
                     }
@@ -239,7 +232,7 @@ namespace WellModesBot
                         text: $"{callbackQuery.Message.Chat.Id}",
                         parseMode: ParseMode.Html);
                         break;
-                    default:
+                default:
                         await SendFieldInfoByIndex(int.Parse(data), callbackQuery.Message.Chat.Id);
                         break;
                 }
@@ -319,22 +312,17 @@ namespace WellModesBot
                 {
                     case OutputType.Default:
                         if (queryIndex.key == "№ скв")
-                        {
                             queryIndex.key = "Скважина";
-                            message.AppendLine($"{queryIndex.key}: {queryIndex.value} {queryIndex.metrics}");
-                        }
-                        else if (queryIndex.key == "верх")
-                        {
+                        else if (queryIndex.metrics == "ат")
+                            queryIndex.metrics = "атм";
+                        message.AppendLine($"{queryIndex.key}: {queryIndex.value} {queryIndex.metrics}");
+                        break;
+                    case OutputType.PVR:
+                        if (queryIndex.key == "верх")
                             queryIndex.key = "Вверх. интер. перф.";
-                            message.AppendLine($"{queryIndex.key}: {queryIndex.value} {queryIndex.metrics}");
-                        }
                         else if (queryIndex.key == "низ")
-                        {
                             queryIndex.key = "Нижн. интер. перф.";
-                            message.AppendLine($"{queryIndex.key}: {queryIndex.value} {queryIndex.metrics}");
-                        }
-                        else
-                            message.AppendLine($"{queryIndex.key}: {queryIndex.value} {queryIndex.metrics}");
+                        message.AppendLine($"{queryIndex.key}: {queryIndex.value} {queryIndex.metrics}");
                         break;
                     case OutputType.Number:
                         bool numbertwo = double.TryParse(queryIndex.value.ToString(), out var result);
@@ -342,7 +330,6 @@ namespace WellModesBot
                             message.AppendLine($"{queryIndex.key}: {double.Parse(queryIndex.value.ToString()).ToString("0.00")} {queryIndex.metrics}");
                         else
                             message.AppendLine($"{queryIndex.key}: {queryIndex.value} {queryIndex.metrics}");
-
                         break;
                     case OutputType.MRP:
                         string? queryIndexinput = queryIndex.value.ToString();
@@ -351,6 +338,10 @@ namespace WellModesBot
                             message.AppendLine($"{queryIndex.key}: {Int32.Parse(queryIndex.value.ToString()) + DateTime.Now.Day - 1} {queryIndex.metrics} на {DateTime.Now.ToString("dd.MM.yyyy")}");
                         else
                             message.AppendLine($"{queryIndex.key}: {queryIndex.value} {queryIndex.metrics}");
+                        break;
+                    case OutputType.KNS:
+                        if (queryIndex.key == "БКНС, КНС")
+                            message.AppendLine($"{"БКНС"}: КНС-{queryIndex.value} {queryIndex.metrics}");
                         break;
                     default:
                         break;
@@ -368,21 +359,21 @@ namespace WellModesBot
             using (var xlPackage = new ExcelPackage(new FileInfo(path)))
             {
                 var worksheetsList = new List<WorksheetInfo>();
-                worksheetsList.Add(ReadWorksheet(xlPackage, 0, new[] { (5, OutputType.Default),   // Месторождение
-                                                                       (7, OutputType.Default),   // № скв
-                                                                       (8, OutputType.Default),   // Куст
-                                                                       (3, OutputType.Default),   // Цех
-                                                                       (17, OutputType.Default),  // Диам. экспл. колон.
-                                                                       (11, OutputType.Default),  // Объ ект разработки/пласт
-                                                                       (14, OutputType.Default),  // верх
-                                                                       (15, OutputType.Default),  // низ
-                                                                       (16, OutputType.Number),   // Удл. на в.д.
-                                                                       (18, OutputType.Default),  // Тек. забой
-                                                                       (22, OutputType.Default),  // Марка насоса
-                                                                       (23, OutputType.Default),  // Глубина насоса
+                worksheetsList.Add(ReadWorksheet(xlPackage, 0, new[] { (4, OutputType.Default),   // Месторождение
+                                                                       (6, OutputType.Default),   // № скв
+                                                                       (7, OutputType.Default),   // Куст
+                                                                       (2, OutputType.Default),   // Цех
+                                                                       (16, OutputType.Default),  // Диам. экспл. колон.
+                                                                       (10, OutputType.Default),  // Объект разработки/пласт
+                                                                       (13, OutputType.PVR),      // верх
+                                                                       (14, OutputType.PVR),      // низ
+                                                                       (15, OutputType.Number),   // Удл. на в.д.
+                                                                       (17, OutputType.Default),  // Тек. забой
+                                                                       (21, OutputType.Default),  // Марка насоса
+                                                                       (22, OutputType.Default),  // Глубина насоса
                                                                        (34, OutputType.Default),  // Доп. оборуд.
-                                                                       (33, OutputType.MRP),      // МРП
-                                                                       (29, OutputType.Default),  // N
+                                                                       (32, OutputType.MRP),      // МРП
+                                                                       (28, OutputType.Default),  // N
                                                                        (35, OutputType.Default),  // D шт.
                                                                        (38, OutputType.Default),  // Ндин
                                                                        (39, OutputType.Default),  // Рзат. при Ндин.
@@ -393,29 +384,30 @@ namespace WellModesBot
                                                                        (55, OutputType.Number),   // % воды
                                                                        (56, OutputType.Number),   // Qн.ф.
                                                                        })); //ТРДС
-                worksheetsList.Add(ReadWorksheet(xlPackage, 1, new[] { (5, OutputType.Default),   // Месторождение
-                                                                       (7, OutputType.Default),   // № скв
-                                                                       (8, OutputType.Default),   // Куст
-                                                                       (3, OutputType.Default),   // Цех
-                                                                       (11, OutputType.Default),  // Блок 
-                                                                       (12, OutputType.Default),  // Объект разработки
-                                                                       (19, OutputType.Default),  // верх
-                                                                       (20, OutputType.Default),  // низ
-                                                                       (21, OutputType.Number),   // Удл. на в.д.
-                                                                       (23, OutputType.Default),  // Иск. забой
-                                                                       (24, OutputType.Default),  // Тек. забой
-                                                                       (25, OutputType.Default),  // СЭ/Характер лифта
-                                                                       (26, OutputType.Default),  // Длина подвески НКТ
-                                                                       (30, OutputType.Default),  // Глубина пакера
-                                                                       (33, OutputType.Default),  // Доп.оборуд. (длина хвост.)
-                                                                       (113, OutputType.MRP),     // МРП
-                                                                       (48, OutputType.Default),  // Рпл. внк
-                                                                       (45, OutputType.Default),  // Нст.
-                                                                       (44, OutputType.Default),  // Руст. стат.
-                                                                       (54, OutputType.Number),   // Q
-                                                                       (38, OutputType.Default),  // Pл.
-                                                                       (34, OutputType.Default),  // Dшт.
-                                                                       (115, OutputType.Default), // Потребная закачка
+                worksheetsList.Add(ReadWorksheet(xlPackage, 1, new[] { (4, OutputType.Default),   // Месторождение
+                                                                       (6, OutputType.Default),   // № скв
+                                                                       (7, OutputType.Default),   // Куст
+                                                                       (2, OutputType.Default),   // Цех
+                                                                       (3, OutputType.KNS),       // БКНС, КНС
+                                                                       (10, OutputType.Default),  // Блок 
+                                                                       (11, OutputType.Default),  // Объект разработки
+                                                                       (18, OutputType.PVR),      // верх
+                                                                       (19, OutputType.PVR),      // низ
+                                                                       (20, OutputType.Number),   // Удл. на в.д.
+                                                                       (22, OutputType.Default),  // Иск. забой
+                                                                       (23, OutputType.Default),  // Тек. забой
+                                                                       (24, OutputType.Default),  // СЭ/Характер лифта
+                                                                       (25, OutputType.Default),  // Длина подвески НКТ
+                                                                       (29, OutputType.Default),  // Глубина пакера
+                                                                       (32, OutputType.Default),  // Доп.оборуд. (длина хвост.)
+                                                                       (114, OutputType.MRP),     // МРП
+                                                                       (47, OutputType.Default),  // Рпл. внк
+                                                                       (44, OutputType.Default),  // Нст.
+                                                                       (43, OutputType.Default),  // Руст. стат.
+                                                                       (53, OutputType.Number),   // Q
+                                                                       (37, OutputType.Default),  // Pл.
+                                                                       (33, OutputType.Default),  // Dшт.
+                                                                       (116, OutputType.Default), // Потребная закачка
                                                                        })); //ТРНС
 
                 _worksheetsList = worksheetsList;
@@ -426,7 +418,6 @@ namespace WellModesBot
                     .ToDictionary(x => x.Key, x => x.Item2.ToList());
             }
         }
-
 
         private static WorksheetInfo ReadWorksheet(ExcelPackage xlPackage, int worksheetIndex, (int, OutputType)[] requiredData)
         {
@@ -447,8 +438,8 @@ namespace WellModesBot
 
             for (int i = 22; i <= totalRows; i++)
             {
-                var numberCell = myWorksheet.Cells[i, 9];
-                var fieldNameCell = myWorksheet.Cells[i, 7];
+                var numberCell = myWorksheet.Cells[i, 8];
+                var fieldNameCell = myWorksheet.Cells[i, 6];
 
                 var number = numberCell.Value;
                 var fieldName = fieldNameCell.Value;
