@@ -27,28 +27,23 @@ namespace WellModesBot
     }
     class Program
     {
-        private static string token = "5348869621:AAFeOl55384vMInbTORGsZwo9YVn-NoEv9w"; //WellModesBot
-        //private static string token = System.IO.File.ReadAllText("wmbot.txt"); //WMBot
+        //private static string token = "5348869621:AAFeOl55384vMInbTORGsZwo9YVn-NoEv9w"; //WellModesBot
+        private static string token = System.IO.File.ReadAllText("wmbot.txt"); //WMBot
 
         private static readonly string InstructionText = $"\U00000031\U000020E3 Введите номер скважины, бот выводит режимные данные.\n" +
                                                          $"\U00000032\U000020E3 Если номер скважины совпадает в нескольких месторождении, бот предложит выбор скважин.\n\n" +
                                                          $"\U00002139 Для быстрого вывода данных возможен ввод: [номер скважины]+[начало названия месторождения]. \n\U000025B6 <b>Бот не привязан к регистру!</b>\U0001F4AA \n\n " +
                                                          $"\U000026A0 Бот не воспринимает '*', для получения информации скважин с индексом, неодходимо ввеcти <b>Индекс!</b>";
 
-        private static readonly string VersionText = $"<b>[21.04.2022 Версия: 1.0.0]</b> \n \U000025AA Добавлена возможность вывода скважин с разными месторождениями. \n\n" +
-                                                     $"<b>[23.04.2022 Версия: 1.0.1]</b> \n \U000025AA Добавлены единицы изменерия. \n \U000025AA Реализовано удобное кнопочное меню. \n\n " +
-                                                     $"<b>[28.04.2022 Версия: 1.0.2]</b> \n \U000025AA Код переписан под API.TelegramBot v17 и адаптирован под хостинг (бот доступен 24/7).  \n\n " +
-                                                     $"<b>[03.05.2022 Версия: 1.0.3]</b> \n \U000025AA Добавлена поддержка вывода режимных данных нагнетательных скважин.  \n\n " +
-                                                     $"<b>[07.05.2022 Версия: 1.0.4]</b> \n \U000025AA Изменена логика поиска скважин. \n \U000025AA Расчет МРП производится на текущий день. \n \U000025AA Вывод значении с двумя знакоми после запятой.";
-
         private static readonly string InfoText = $"\U0001F4C5 Дата создания бота: <b>20.04.2022</b>\n" +
-                                                  $"\U0001F4BB Версия бота: <b>1.0.4.3 (Beta)</b>\n" +
+                                                  $"\U0001F4BB Версия бота: <b>1.1.2</b>\n" +
                                                   $"\U0001F4BE Технологические режимы от <b>07.2022</b>";
 
         private static TelegramBotClient client;
 
         static string logUsers = "logUsers.json";
         static string userList = @"users.txt";
+        static string rootList = @"root.txt";
         static List<BotUpdate> botUpdate = new List<BotUpdate>();
         private static List<WorksheetInfo> _worksheetsList;
         private static List<FieldInfo> _allFields;
@@ -122,6 +117,14 @@ namespace WellModesBot
                     listOfUsers.Add(fileUserList[i]);
                 }
 
+                // Список пользователей c правами админа
+                var fileRootList = System.IO.File.ReadAllLines(rootList);
+                HashSet<string> listOfRoot = new HashSet<string>();
+                for (var k = 0; k < fileRootList.Length; k++)
+                {
+                    listOfRoot.Add(fileRootList[k]);
+                }
+
                 if (msg.Text == null)
                     return;
 
@@ -133,17 +136,14 @@ namespace WellModesBot
                     msg.Chat.Id,
                     photo: "https://raw.githubusercontent.com/LEN4R/WellModesBot/main/pic/logo.jpg",
                     caption: $"\U0001F44B Здравствуйте {msg.From.LastName} {msg.From.FirstName}!\n\U0001F916 Меня зовут <u>{client.GetMeAsync().Result.FirstName}</u>, я телеграмм бот! ", parseMode: ParseMode.Html);
-                    if (listOfUsers.TryGetValue(msg.Chat.Id.ToString(), out var null1))
-                    {
-                        await client.SendTextMessageAsync(msg.Chat.Id, text: $"\U0001F310 Для вызова меню отправьте <b>/help</b>.", parseMode: ParseMode.Html);
-                        await client.SendTextMessageAsync(msg.Chat.Id, text: $"\U00002139 Для начала работы <b>отправьте мне номер скважины</b>.", parseMode: ParseMode.Html);
-                        return;
-                    }
+                    await client.SendTextMessageAsync(msg.Chat.Id, text: $"\U00002139 Для начала работы <b>отправьте мне номер скважины</b>.", parseMode: ParseMode.Html);
+                    return;
+
                 }
 
-                if (listOfUsers.TryGetValue(msg.Chat.Id.ToString(), out var null2))
+                if (listOfUsers.TryGetValue(msg.Chat.Id.ToString(), out var null1))
                 {
-                    if (msg.Chat.Id == 947161854)
+                    if (listOfRoot.TryGetValue(msg.Chat.Id.ToString(), out var null2))
                     {
                         if (msg.Text == "log" || msg.Text == "Log")
                         {
@@ -161,7 +161,9 @@ namespace WellModesBot
                                 var appendText = Environment.NewLine + regUser[1];
                                 System.IO.File.AppendAllText(userList, appendText);
                             }
-                            await client.SendTextMessageAsync(msg.Chat.Id = 947161854, text: $"Новый пользователь: {regUser[1]}", parseMode: ParseMode.Html);
+                            if (msg.Chat.Id != 947161854)
+                                await client.SendTextMessageAsync(msg.Chat.Id, text: $"\U00002795 Добавлен новый пользователь: {regUser[1]}", parseMode: ParseMode.Html);
+                            await client.SendTextMessageAsync(msg.Chat.Id = 947161854, text: $"\U00002795 Добавлен новый пользователь: {regUser[1]}", parseMode: ParseMode.Html);
                             return;
                         }
 
@@ -180,7 +182,6 @@ namespace WellModesBot
                             {
                                 new []{InlineKeyboardButton.WithCallbackData("\U00002755 Инструкция по боту", "instruction")},
                                 new []{InlineKeyboardButton.WithCallbackData("\U00002139 Информация по боту", "info")},
-                                new []{InlineKeyboardButton.WithCallbackData("\U0000231B История изменении", "version")},
                                 new []
                                 {
                                     InlineKeyboardButton.WithUrl("\U0000270D Обратная связь","https://t.me/len4r"),
@@ -213,12 +214,6 @@ namespace WellModesBot
                         await client.SendPhotoAsync(callbackQuery.Message.Chat.Id,
                         photo: "https://raw.githubusercontent.com/LEN4R/WellModesBot/main/pic/pic_info.jpg",
                         caption: InfoText,
-                        parseMode: ParseMode.Html);
-                        break;
-                    case "version":
-                        await client.SendPhotoAsync(callbackQuery.Message.Chat.Id,
-                        photo: "https://raw.githubusercontent.com/LEN4R/WellModesBot/main/pic/pic_version.jpg",
-                        caption: VersionText,
                         parseMode: ParseMode.Html);
                         break;
                     case "contact":
@@ -405,13 +400,12 @@ namespace WellModesBot
                                                                        (44, OutputType.Default),  // Нст.
                                                                        (43, OutputType.Default),  // Руст. стат.
                                                                        (53, OutputType.Number),   // Q
-                                                                       (37, OutputType.Default),  // Pл.
+                                                                       (37, OutputType.Number),  // Pл.
                                                                        (33, OutputType.Default),  // Dшт.
                                                                        (116, OutputType.Default), // Потребная закачка
                                                                        })); //ТРНС
 
-                _worksheetsList = worksheetsList;
-                _allFields = worksheetsList.SelectMany(x => x.Fields).ToList();
+                _worksheetsList = worksheetsList;                _allFields = worksheetsList.SelectMany(x => x.Fields).ToList();
                 _allFieldsCombined = worksheetsList.SelectMany(x => x.FieldsCombined)
                     .GroupBy(x => x.Key)
                     .Select(x => (x.Key, x.SelectMany(y => y.Value)))
