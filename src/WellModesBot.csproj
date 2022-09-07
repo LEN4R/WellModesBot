@@ -33,6 +33,9 @@
     <None Update="key.txt">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <None Update="root.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="test">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
