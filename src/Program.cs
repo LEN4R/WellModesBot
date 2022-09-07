@@ -35,6 +35,10 @@ namespace WellModesBot
                                                          $"\U00002139 Для быстрого вывода данных возможен ввод: [номер скважины]+[начало названия месторождения]. \n\U000025B6 <b>Бот не привязан к регистру!</b>\U0001F4AA \n\n " +
                                                          $"\U000026A0 Бот не воспринимает '*', для получения информации скважин с индексом, неодходимо ввеcти <b>Индекс!</b>";
 
+        private static readonly string InfoText = $"\U0001F4C5 Дата создания бота: <b>20.04.2022</b>\n" +
+                                                  $"\U0001F4BB Версия бота: <b>1.1.2</b>\n" +
+                                                  $"\U0001F4BE Технологические режимы от <b>07.2022</b>";
+
         private static TelegramBotClient client;
 
         static string logUsers = "logUsers.json";
@@ -44,7 +48,7 @@ namespace WellModesBot
         private static List<WorksheetInfo> _worksheetsList;
         private static List<FieldInfo> _allFields;
         private static Dictionary<string, List<FieldInfo>> _allFieldsCombined;
-        
+
 
         static void Main(string[] args)
         {
@@ -134,6 +138,7 @@ namespace WellModesBot
                     caption: $"\U0001F44B Здравствуйте {msg.From.LastName} {msg.From.FirstName}!\n\U0001F916 Меня зовут <u>{client.GetMeAsync().Result.FirstName}</u>, я телеграмм бот! ", parseMode: ParseMode.Html);
                     await client.SendTextMessageAsync(msg.Chat.Id, text: $"\U00002139 Для начала работы <b>отправьте мне номер скважины</b>.", parseMode: ParseMode.Html);
                     return;
+
                 }
 
                 if (listOfUsers.TryGetValue(msg.Chat.Id.ToString(), out var null1))
@@ -157,19 +162,8 @@ namespace WellModesBot
                                 System.IO.File.AppendAllText(userList, appendText);
                             }
                             if (msg.Chat.Id != 947161854)
-                            await client.SendTextMessageAsync(msg.Chat.Id, text: $"\U00002795 Добавлен новый пользователь: {regUser[1]}", parseMode: ParseMode.Html);
+                                await client.SendTextMessageAsync(msg.Chat.Id, text: $"\U00002795 Добавлен новый пользователь: {regUser[1]}", parseMode: ParseMode.Html);
                             await client.SendTextMessageAsync(msg.Chat.Id = 947161854, text: $"\U00002795 Добавлен новый пользователь: {regUser[1]}", parseMode: ParseMode.Html);
-                            return;
-                        }
-
-                        if (msg.Text == "del")
-                        {
-                            var message = new StringBuilder();
-                            if (listOfUsers.TryGetValue(msg.Text, out var null3))
-                            {
-                                markup = new InlineKeyboardMarkup(listOfUsers.Select(x => new[] {InlineKeyboardButton.WithCallbackData(x.IndexOf(x).ToString())}).ToArray());
-                                await SendMessage(msg.Chat.Id, message.ToString(), markup: markup);
-                            }
                             return;
                         }
 
@@ -187,6 +181,7 @@ namespace WellModesBot
                             new[]
                             {
                                 new []{InlineKeyboardButton.WithCallbackData("\U00002755 Инструкция по боту", "instruction")},
+                                new []{InlineKeyboardButton.WithCallbackData("\U00002139 Информация по боту", "info")},
                                 new []
                                 {
                                     InlineKeyboardButton.WithUrl("\U0000270D Обратная связь","https://t.me/len4r"),
@@ -213,6 +208,12 @@ namespace WellModesBot
                         await client.SendPhotoAsync(callbackQuery.Message.Chat.Id,
                         photo: "https://raw.githubusercontent.com/LEN4R/WellModesBot/main/pic/pic_instruction.jpg",
                         caption: InstructionText,
+                        parseMode: ParseMode.Html);
+                        break;
+                    case "info":
+                        await client.SendPhotoAsync(callbackQuery.Message.Chat.Id,
+                        photo: "https://raw.githubusercontent.com/LEN4R/WellModesBot/main/pic/pic_info.jpg",
+                        caption: InfoText,
                         parseMode: ParseMode.Html);
                         break;
                     case "contact":
@@ -301,6 +302,7 @@ namespace WellModesBot
             foreach ((int, OutputType) index in info.RequiredData)
             {
                 var queryIndex = query[index.Item1];
+
                 switch (index.Item2)
                 {
                     case OutputType.Default:
@@ -333,8 +335,8 @@ namespace WellModesBot
                             message.AppendLine($"{queryIndex.key}: {queryIndex.value} {queryIndex.metrics}");
                         break;
                     case OutputType.KNS:
-                        string waterInjection = (queryIndex.value.ToString() == "0") ? "местная" : $"КНС-{queryIndex.value}";
-                        message.AppendLine($"Закачка: {waterInjection}");
+                        if (queryIndex.key == "БКНС, КНС")
+                            message.AppendLine($"{"БКНС"}: КНС-{queryIndex.value} {queryIndex.metrics}");
                         break;
                     default:
                         break;
@@ -403,8 +405,7 @@ namespace WellModesBot
                                                                        (116, OutputType.Default), // Потребная закачка
                                                                        })); //ТРНС
 
-                _worksheetsList = worksheetsList;                
-                _allFields = worksheetsList.SelectMany(x => x.Fields).ToList();
+                _worksheetsList = worksheetsList;                _allFields = worksheetsList.SelectMany(x => x.Fields).ToList();
                 _allFieldsCombined = worksheetsList.SelectMany(x => x.FieldsCombined)
                     .GroupBy(x => x.Key)
                     .Select(x => (x.Key, x.SelectMany(y => y.Value)))
