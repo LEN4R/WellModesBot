@@ -13,26 +13,52 @@ using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.InputFiles;
 using Telegram.Bot.Types.ReplyMarkups;
+using WellModesBot.BotCommands;
 
 namespace WellModesBot
 {
-    public class BotService
+    public class TelegramBotService
     {
         private TelegramBotClient client;
+
+        private readonly LogService _logService;
         private readonly SettingsService _settings;
-        private readonly DataService _data;
+        private readonly UsersService _usersService;
+        private readonly WellsDataService _data;
         private readonly MessageBuilder _messageBuilder;
 
-        List<BotUpdate> botUpdate = new List<BotUpdate>();
+        readonly Command _defaultCommand;
+        readonly Dictionary<string, Command> _commands = new Dictionary<string, Command>();
 
-        public BotService(SettingsService settingsService, DataService dataService, MessageBuilder messageBuilder)
+        public TelegramBotService(LogService logService,
+            SettingsService settingsService, 
+            UsersService usersService,
+            WellsDataService dataService,
+            MessageBuilder messageBuilder)
         {
+            _logService = logService;
             _settings = settingsService;
+            _usersService = usersService;
             _data = dataService;
             _messageBuilder = messageBuilder;
+
+            _commands = new Dictionary<string, Command>() 
+            {
+                { "start", new StartCommand(this) },
+                { "info", new InstructionCommand(this, settingsService) },
+                { "reg", new RegisterNewUserCommand(this, usersService) }
+            };
+
+            _defaultCommand = new FindWellsCommand(this, dataService, messageBuilder);
         }
 
-        internal void Start()
+        public async Task SendButtons(long chatId, string text, ButtonInfo[] buttons)
+        {
+            var markup = new InlineKeyboardMarkup(buttons.Select(x => new[] { InlineKeyboardButton.WithCallbackData(x.Text, x.Id) }));
+            await SendTelegramMessage(chatId, text, markup: markup);
+        }
+
+        public void Start()
         {
             client = new TelegramBotClient(_settings.BotToken); // Токен бота
             using var cts = new CancellationTokenSource(); // Токен отмены
@@ -46,15 +72,15 @@ namespace WellModesBot
             cts.Cancel();
 
             //Запись всех обновлении бота
-            try
+            /*try
             {
-                var botUpdatesString = System.IO.File.ReadAllText(_settings.LogUsers);
+                var botUpdatesString = System.IO.File.ReadAllText(_settings.LogUsersFilePath);
                 botUpdate = JsonConvert.DeserializeObject<List<BotUpdate>>(botUpdatesString) ?? botUpdate;
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Ошибка десериализации обновлении бота {ex}");
-            }
+            }*/
         }
 
 
@@ -64,47 +90,45 @@ namespace WellModesBot
             if (update.Type == UpdateType.Message && update?.Message?.Text != null)
             {
                 await HandleMessage(сlient, update.Message);
-                if (update.Message.Chat.Id != 947161854)
+                if (update.Message.Chat.Id != _settings.AdministratorId)
                 {
                     var timeZoneHourEkb = (update.Message.Date.Hour + 5) % 24;
-                    var _botUpdate = new BotUpdate
+                    var botUpdate = new BotUpdate
                     {
                         id = update.Message.Chat.Id,
                         data = update.Message.Date.Day + "." + update.Message.Date.Month + "." + update.Message.Date.Year + " " + timeZoneHourEkb + ":" + update.Message.Date.Minute,
                         text = update.Message.Text,
                         username = update.Message.Chat.Username + " " + update.Message.From.FirstName + " " + update.Message.From.LastName,
                     };
-                    botUpdate.Add(_botUpdate);
-                    var botUpdatesString = JsonConvert.SerializeObject(botUpdate);
-                    System.IO.File.WriteAllText(_settings.LogUsers, botUpdatesString);
+
+                    _logService.LogMessage(botUpdate);
                     return;
                 }
             }
+
             if (update.Type == UpdateType.CallbackQuery)
             {
                 await HandleCallbackQuery(сlient, update.CallbackQuery);
                 return;
             }
+
             if (update.Message!.Type != MessageType.Text)
                 return;
         }
 
         async Task HandleCallbackQuery(ITelegramBotClient сlient, CallbackQuery callbackQuery)
         {
-            var data = callbackQuery.Data;
+            await HandleMessage(сlient, callbackQuery.Message, callbackQuery.Data);
+
+            /*var data = callbackQuery.Data;
             switch (data)
             {
                 case "instruction":
-                    await client.SendPhotoAsync(callbackQuery.Message.Chat.Id,
-                    photo: "https://raw.githubusercontent.com/LEN4R/WellModesBot/main/pic/pic_instruction.jpg",
-                    caption: _settings.InstructionText,
-                    parseMode: ParseMode.Html);
-                    break;
-                case "info":
-                    await client.SendPhotoAsync(callbackQuery.Message.Chat.Id,
-                    photo: "https://raw.githubusercontent.com/LEN4R/WellModesBot/main/pic/pic_info.jpg",
-                    caption: _settings.InfoText,
-                    parseMode: ParseMode.Html);
+                    //await HandleMessage(сlient, callbackQuery.Message, data);
+                    // await client.SendPhotoAsync(callbackQuery.Message.Chat.Id,
+                    // photo: "https://raw.githubusercontent.com/LEN4R/WellModesBot/main/pic/pic_instruction.jpg",
+                    // caption: _settings.InstructionText,
+                    // parseMode: ParseMode.Html);
                     break;
                 case "contact":
                     await сlient.SendContactAsync(callbackQuery.Message.Chat.Id,
@@ -120,17 +144,17 @@ namespace WellModesBot
                 default:
                     await SendFieldInfoByIndex(int.Parse(data), callbackQuery.Message.Chat.Id);
                     break;
-            }
+            }*/
         }
 
         // Сборка данных с массивов данных.
         private async Task SendFieldInfoByIndex(int index, long chatId)
         {
             var message = _messageBuilder.BuildMessage(index);
-            await SendMessage(chatId, message.ToString());
+            await SendTelegramMessage(chatId, message.ToString());
         }
 
-        private async Task SendMessage(long chatId, string message, int replyMessageId = 0, InlineKeyboardMarkup markup = null)
+        private async Task SendTelegramMessage(long chatId, string message, int replyMessageId = 0, InlineKeyboardMarkup markup = null)
         {
             await client.SendTextMessageAsync(chatId: chatId, text: message, replyToMessageId: replyMessageId, replyMarkup: markup);
         }
@@ -148,54 +172,46 @@ namespace WellModesBot
             return Task.CompletedTask;
         }
 
-        async Task ProcessMessage(Message msg, InlineKeyboardMarkup markup)
-        {
-            string message;
-
-            if (_data.TryFindWellsByName(msg.Text, out WellData data))
-            {
-                // Отправка данных с выбором месторождении.
-                if (data.WellsCount > 1)
-                {
-                    var messageBuilder = new StringBuilder();
-                    messageBuilder.Append("\U0001F50E Пожалуйста, выберите скважину:");
-
-                    var list = data.Wells.Select(x => {
-                        var name = _data.GetWorkSheetNameByNumber(x.WorksheetNumber);
-                        var text = name + " " + x.FullName;
-                        var callbackData = x.Id.ToString();
-
-                        return new[] { InlineKeyboardButton.WithCallbackData(text, callbackData) };
-                    }).ToArray();
-
-                    markup = new InlineKeyboardMarkup(list);
-                    message = messageBuilder.ToString();
-                }
-                else
-                {
-                    var wellDataItem = data.Wells[0];
-                    message = _messageBuilder.BuildMessageByWellId(wellDataItem.Id);
-                }
-                await SendMessage(msg.Chat.Id, message, markup: markup);
-            }
-            else
-            {
-                // Отправка данных без выбора месторождении.
-                if (_data.TryFindWellIdByNamePrefix(msg.Text, out var id))
-                {
-                    message = _messageBuilder.BuildMessageByWellId(id);
-                    await SendMessage(msg.Chat.Id, message.ToString());
-                }
-                else
-                {
-                    await SendMessage(msg.Chat.Id, "\U0000274C ОШИБКА! Такой скважины нет!");
-                }
-            }
-        }
+        //async Task ProcessMessage(Message msg, InlineKeyboardMarkup markup)
+        //{
+            
+        //}
 
         // Метод обработки сообщении бота
-        async Task HandleMessage(ITelegramBotClient сlient, Message msg)
+        async Task HandleMessage(ITelegramBotClient сlient, Message msg, string commandOverride = null)
         {
+            var commandText = commandOverride ?? msg.Text;
+
+            if (commandText == null)
+                return;
+
+            var originalText = commandText;
+
+            if (commandText.StartsWith('/'))
+            {
+                commandText = commandText.Substring(1);
+            }
+
+            commandText = commandText.ToLowerInvariant();
+               
+            var currentUser = await client.GetMeAsync();
+
+            var parameters = new CommandParameters()
+            {
+                OriginalText = originalText,
+                SenderLastName = msg.From.LastName,
+                SenderFirstName = msg.From.FirstName,
+                BotName = currentUser.FirstName,
+                ChatId = msg.Chat.Id,
+            };
+
+            if (_commands.TryGetValue(commandText, out Command command))
+                await command.Execute(parameters);
+            else
+                await _defaultCommand.Execute(parameters);
+
+
+            /*
             // Список пользователей
             var fileUserList = System.IO.File.ReadAllLines(_settings.UserList);
             HashSet<string> listOfUsers = new HashSet<string>();
@@ -234,7 +250,7 @@ namespace WellModesBot
                 {
                     if (msg.Text == "log" || msg.Text == "Log")
                     {
-                        await using Stream fileUserLog = System.IO.File.OpenRead(_settings.LogUsers);
+                        await using Stream fileUserLog = System.IO.File.OpenRead(_settings.LogUsersFilePath);
                         Message message = await client.SendDocumentAsync(msg.Chat.Id, document: new InputOnlineFile(content: fileUserLog, fileName: "LogUsers.json"));
                         return;
                     }
@@ -283,12 +299,23 @@ namespace WellModesBot
             else
             {
                 await client.SendTextMessageAsync(msg.Chat.Id, text: $"\U0000274C <b>ОШИБКА!</b> У вас нет доступа!", parseMode: ParseMode.Html, replyMarkup: new InlineKeyboardMarkup(new[] { new[] { InlineKeyboardButton.WithCallbackData("\U0001F194 Узнать Telegram ID", "telegramID") } }));
-            }
+            }*/
         }
 
-
-
-
+        internal async Task SendMessage(long chatId, MessageInfo message)
+        {
+            if (message.PhotoUrl != null)
+            {
+                await client.SendPhotoAsync(
+                 chatId,
+                 photo: message.PhotoUrl,
+                 caption: message.Text, parseMode: ParseMode.Html);
+            }
+            else
+            {
+                await client.SendTextMessageAsync(chatId, text: message.Text, parseMode: ParseMode.Html);
+            }
+        }
     }
 
     struct BotUpdate

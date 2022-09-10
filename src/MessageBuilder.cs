@@ -6,9 +6,9 @@ namespace WellModesBot
 {
     public class MessageBuilder
     {
-        private readonly DataService _dataService;
+        private readonly WellsDataService _dataService;
 
-        public MessageBuilder(DataService dataService)
+        public MessageBuilder(WellsDataService dataService)
         {
             _dataService = dataService;
         }
@@ -74,7 +74,7 @@ namespace WellModesBot
             }
         }
 
-        internal string BuildMessageByWellId(int id)
+        public string BuildMessageByWellId(int id)
         {
             var field = _dataService.GetFieldByIndex(id);
             var messageBuilder = new StringBuilder();

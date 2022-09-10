@@ -15,7 +15,7 @@ namespace WellModesBot
                                                   $"\U0001F4BE Технологические режимы от <b>07.2022</b>";
 
 
-        public string LogUsers => "logUsers.json";
+        public string LogUsersFilePath => "logUsers.json";
         public string UserList => @"users.txt";
         public string RootList => @"root.txt";
 
@@ -24,6 +24,7 @@ namespace WellModesBot
 #else
         public string BotToken => System.IO.File.ReadAllText("wmbot.txt"); //WMBot
 #endif
+        public long AdministratorId => 947161854;
 
         internal void LoadSettings()
         {

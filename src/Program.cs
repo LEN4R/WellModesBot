@@ -1,22 +1,4 @@
-﻿
-using OfficeOpenXml;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-using Telegram.Bot;
-using Telegram.Bot.Types.ReplyMarkups;
-using Telegram.Bot.Types;
-using Telegram.Bot.Types.Enums;
-using Telegram.Bot.Exceptions;
-using Telegram.Bot.Extensions.Polling;
-using Newtonsoft.Json;
-using Telegram.Bot.Types.InputFiles;
-
-namespace WellModesBot
+﻿namespace WellModesBot
 {
     class Program
     {
@@ -26,13 +8,15 @@ namespace WellModesBot
 
             settingsService.LoadSettings();
 
-            var dataService = new DataService();
+            var usersService = new UsersService();
+            var logService = new LogService();
+            var dataService = new WellsDataService();
 
             dataService.LoadData(settingsService);
 
             var messageBuilder = new MessageBuilder(dataService);
 
-            var botService = new BotService(settingsService, dataService, messageBuilder);
+            var botService = new TelegramBotService(logService, settingsService, usersService, dataService, messageBuilder);
 
             botService.Start();
         }

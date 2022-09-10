@@ -7,7 +7,7 @@ using System.Text;
 
 namespace WellModesBot
 {
-    public class DataService
+    public class WellsDataService
     {
         private List<WorksheetInfo> _worksheetsList;
         private List<FieldInfo> _allFields;
