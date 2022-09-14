@@ -5,6 +5,8 @@ namespace WellModesBot.BotCommands
 {
     public class RegisterNewUserCommand : Command
     {
+        public const string Key = "register";
+
         private readonly UsersService _usersService;
 
         public RegisterNewUserCommand(TelegramBotService botService, UsersService usersService)

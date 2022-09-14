@@ -4,6 +4,7 @@ namespace WellModesBot.BotCommands
 {
     public class StartCommand : Command
     {
+        public const string Key = "start";
         public StartCommand(TelegramBotService botService)
             : base(botService)
         {

@@ -12,6 +12,7 @@ namespace WellModesBot
         private List<WorksheetInfo> _worksheetsList;
         private List<FieldInfo> _allFields;
         private Dictionary<string, List<FieldInfo>> _allFieldsCombined;
+        private Dictionary<string, Dictionary<string, WellsClusterInfo>> _wellsOrdersLists;
 
         internal void LoadData(SettingsService settingsService)
         {
@@ -30,10 +31,25 @@ namespace WellModesBot
 
         private void GetData()
         {
-            //var path = Directory.EnumerateFiles(Environment.CurrentDirectory).FirstOrDefault(x => x.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase));
-            var path = @"Info.xlsx";
-            Console.WriteLine($"Файл загружен:{path}");
             ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+
+            LoadWellsInfo();
+            LoadWellsLocations();
+        }
+
+        internal Dictionary<string, WellsClusterInfo> FindClustersByNumber(string clusterNumber)
+        {
+            if (_wellsOrdersLists.TryGetValue(clusterNumber.ToLowerInvariant(), out var dictionary))
+                return dictionary;
+
+            return new Dictionary<string, WellsClusterInfo>();    
+        }
+
+        private void LoadWellsInfo()
+        {
+            //var path = Directory.EnumerateFiles(Environment.CurrentDirectory).FirstOrDefault(x => x.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase));
+            var path = @"Files/Info.xlsx";
+            Console.WriteLine($"Файл загружен:{path}");
 
             using (var xlPackage = new ExcelPackage(new FileInfo(path)))
             {
@@ -89,12 +105,63 @@ namespace WellModesBot
                                                                        (116, OutputType.Default), // Потребная закачка
                                                                        })); //ТРНС
 
-                _worksheetsList = worksheetsList; 
+                _worksheetsList = worksheetsList;
                 _allFields = worksheetsList.SelectMany(x => x.Fields).ToList();
                 _allFieldsCombined = worksheetsList.SelectMany(x => x.FieldsCombined)
                     .GroupBy(x => x.Key)
                     .Select(x => (x.Key, x.SelectMany(y => y.Value)))
                     .ToDictionary(x => x.Key, x => x.Item2.ToList());
+            }
+        }
+
+        private void LoadWellsLocations()
+        {
+            var wellsOrdersLists = new Dictionary<string, Dictionary<string, WellsClusterInfo>>();
+
+            using (var xlPackage = new ExcelPackage(new FileInfo("Files/LocationOfWells.xlsx")))
+            {
+                var myWorksheet = xlPackage.Workbook.Worksheets[0];
+                var totalRows = myWorksheet.Dimension.End.Row;
+                var totalColumns = myWorksheet.Dimension.End.Column;
+
+                for (int i = 1; i <= totalRows; i++)
+                {
+                    var clusterNumber = myWorksheet.Cells[i, 1];
+                    var clusterName = myWorksheet.Cells[i, 2];
+
+                    if (clusterNumber.Value == null || clusterName.Value == null)
+                        continue;
+
+                    var wellsOrderList = new List<string>(32);
+
+                    for (int k = 3; k <= totalColumns; k++)
+                    {
+                        var cell = myWorksheet.Cells[i, k];
+
+                        if (cell.Value == null)
+                            break;
+
+                        var stringValue = cell.Value.ToString();
+
+                        if (string.IsNullOrWhiteSpace(stringValue))
+                            break;
+
+                        wellsOrderList.Add(stringValue);
+                    }
+
+                    var clusterNumberString = clusterNumber.Value.ToString().ToLowerInvariant();
+
+                    if (!wellsOrdersLists.TryGetValue(clusterNumberString, out var dictionary))
+                        wellsOrdersLists[clusterNumberString] = dictionary = new Dictionary<string, WellsClusterInfo>();
+
+                    dictionary.Add(clusterName.Value.ToString(), new WellsClusterInfo() 
+                    {
+                        ClusterName = clusterName.ToString(),
+                        WellsOrderList = wellsOrderList
+                    });
+                }
+
+                _wellsOrdersLists = wellsOrdersLists;
             }
         }
 
@@ -210,6 +277,76 @@ namespace WellModesBot
             }
 
             return new WorksheetInfo(myWorksheet.Name, worksheetFields, worksheetFieldsCombined, requiredData, columnNames, columnMetrics);
+        }
+
+        public string PrintFieldDataByIndex(int id)
+        {
+            var field = GetFieldByIndex(id);
+            var worksheetInfo = GetWorkSheetListByNumber(field.WorksheetNumber);
+
+            return PrintFieldDataByColumnIndexes(field, worksheetInfo);
+        }
+
+        private string PrintFieldDataByColumnIndexes(FieldInfo field, WorksheetInfo info)
+        {
+            var message = new StringBuilder();
+
+            var query = info.ColumnNames
+                .Select((x, i) => (key: x, value: field.Data[i], metrics: info.ColumnMetrics[i]))
+                .Where(x => x.key != null).ToArray();
+
+            foreach ((int, OutputType) index in info.RequiredData)
+            {
+                var queryIndex = query[index.Item1];
+
+                if (queryIndex.value == null)
+                    continue;
+
+                var stringValue = queryIndex.value.ToString();
+
+                if (string.IsNullOrWhiteSpace(stringValue))
+                    continue;
+
+                switch (index.Item2)
+                {
+                    case OutputType.Default:
+                        if (queryIndex.key == "№ скв")
+                            queryIndex.key = "Скважина";
+                        else if (queryIndex.metrics == "ат")
+                            queryIndex.metrics = "атм";
+
+                        message.AppendLine($"{queryIndex.key}: {queryIndex.value} {queryIndex.metrics}");
+                        break;
+                    case OutputType.PVR:
+                        if (queryIndex.key == "верх")
+                            queryIndex.key = "Вверх. интер. перф.";
+                        else if (queryIndex.key == "низ")
+                            queryIndex.key = "Нижн. интер. перф.";
+
+                        message.AppendLine($"{queryIndex.key}: {queryIndex.value} {queryIndex.metrics}");
+                        break;
+                    case OutputType.Number:
+                        if (double.TryParse(stringValue, out var result))
+                            message.AppendLine($"{queryIndex.key}: {double.Parse(stringValue).ToString("0.00")} {queryIndex.metrics}");
+                        else
+                            message.AppendLine($"{queryIndex.key}: {queryIndex.value} {queryIndex.metrics}");
+                        break;
+                    case OutputType.MRP:
+                        if (int.TryParse(stringValue, out var number))
+                            message.AppendLine($"{queryIndex.key}: {int.Parse(stringValue) + DateTime.Now.Day - 1} {queryIndex.metrics} на {DateTime.Now.ToString("dd.MM.yyyy")}");
+                        else
+                            message.AppendLine($"{queryIndex.key}: {queryIndex.value} {queryIndex.metrics}");
+                        break;
+                    case OutputType.KNS:
+                        if (queryIndex.key == "БКНС, КНС")
+                            message.AppendLine($"{"БКНС"}: КНС-{queryIndex.value} {queryIndex.metrics}");
+                        break;
+                    default:
+                        break;
+                }
+            }
+
+            return message.ToString();
         }
     }
 }

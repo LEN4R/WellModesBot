@@ -2,11 +2,12 @@
 
 namespace WellModesBot.BotCommands
 {
-    public class InstructionCommand : Command
+    public class GetInstructionCommand : Command
     {
+        public const string Key = "instruction";
         private readonly SettingsService _settingsService;
 
-        public InstructionCommand(TelegramBotService botService, SettingsService settingsService)
+        public GetInstructionCommand(TelegramBotService botService, SettingsService settingsService)
             : base(botService)
         {
             _settingsService = settingsService;

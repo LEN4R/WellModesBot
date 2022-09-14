@@ -10,21 +10,19 @@ namespace WellModesBot
                                                         $"\U00002139 Для быстрого вывода данных возможен ввод: [номер скважины]+[начало названия месторождения]. \n\U000025B6 <b>Бот не привязан к регистру!</b>\U0001F4AA \n\n " +
                                                         $"\U000026A0 Бот не воспринимает '*', для получения информации скважин с индексом, неодходимо ввеcти <b>Индекс!</b>";
 
-        public string InfoText => $"\U0001F4C5 Дата создания бота: <b>20.04.2022</b>\n" +
-                                                  $"\U0001F4BB Версия бота: <b>1.1.2</b>\n" +
-                                                  $"\U0001F4BE Технологические режимы от <b>07.2022</b>";
-
-
-        public string LogUsersFilePath => "logUsers.json";
-        public string UserList => @"users.txt";
-        public string RootList => @"root.txt";
+        public string UserListFilePath => @"Files/users.txt";
+        public string RootListFilePath => @"Files/root.txt";
 
 #if !DEBUG
-        public string BotToken => "5348869621:AAFeOl55384vMInbTORGsZwo9YVn-NoEv9w"; //WellModesBot
+        public string BotTokenFilePath => "5348869621:AAFeOl55384vMInbTORGsZwo9YVn-NoEv9w"; //WellModesBot
 #else
-        public string BotToken => System.IO.File.ReadAllText("wmbot.txt"); //WMBot
+        public string BotTokenFilePath => System.IO.File.ReadAllText("Files/wmbot.txt"); //WMBot
 #endif
         public long AdministratorId => 947161854;
+
+        public string ContactPhoneNumber => "+79678888663";
+        public string ContactFirstName => "Ленар";
+        public string ContactsLastName => "Галиев";
 
         internal void LoadSettings()
         {

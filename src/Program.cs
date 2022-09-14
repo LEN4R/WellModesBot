@@ -4,9 +4,11 @@
     {
         static void Main(string[] args)
         {
+            var resourcesService = new ResourcesService();
             var settingsService = new SettingsService();
 
             settingsService.LoadSettings();
+            resourcesService.LoadResources();
 
             var usersService = new UsersService();
             var logService = new LogService();
@@ -14,9 +16,7 @@
 
             dataService.LoadData(settingsService);
 
-            var messageBuilder = new MessageBuilder(dataService);
-
-            var botService = new TelegramBotService(logService, settingsService, usersService, dataService, messageBuilder);
+            var botService = new TelegramBotService(logService, settingsService, usersService, dataService);
 
             botService.Start();
         }

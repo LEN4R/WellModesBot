@@ -1,20 +1,19 @@
 ﻿using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Telegram.Bot.Types.ReplyMarkups;
 
 namespace WellModesBot.BotCommands
 {
     public class FindWellsCommand : Command
     {
-        private readonly WellsDataService _wellsDataService;
-        private readonly MessageBuilder _messageBuilder;
+        public const string Key = "findwells";
 
-        public FindWellsCommand(TelegramBotService botService, WellsDataService dataService, MessageBuilder messageBuilder) 
+        private readonly WellsDataService _wellsDataService;
+
+        public FindWellsCommand(TelegramBotService botService, WellsDataService dataService) 
             : base(botService)
         {
             _wellsDataService = dataService;
-            _messageBuilder = messageBuilder;
         }
 
         public override async Task Execute(CommandParameters parameters)
@@ -27,7 +26,12 @@ namespace WellModesBot.BotCommands
                 });
             }
 
-            if (_wellsDataService.TryFindWellsByName(parameters.OriginalText, out WellData data))
+            var query = parameters.OriginalText;
+
+            if (query.StartsWith(Key, System.StringComparison.OrdinalIgnoreCase))
+                query = query.Substring(Key.Length).TrimStart();
+
+            if (_wellsDataService.TryFindWellsByName(query, out WellData data))
             {
                 // Отправка данных с выбором месторождении.
                 if (data.WellsCount > 1)
@@ -39,14 +43,14 @@ namespace WellModesBot.BotCommands
 
                         return new ButtonInfo()
                         {
-                            Id = x.Id.ToString(),
+                            Id = $"{GetWellByIdCommand.Key} {x.Id}",
                             Text = text
                         };
                     }).ToArray());
                 }
                 else
                 {
-                    await Send(_messageBuilder.BuildMessageByWellId(data.Wells[0].Id));
+                    await Send(_wellsDataService.PrintFieldDataByIndex(data.Wells[0].Id));
                 }
             }
             else
@@ -54,7 +58,7 @@ namespace WellModesBot.BotCommands
                 // Отправка данных без выбора месторождении.
                 if (_wellsDataService.TryFindWellIdByNamePrefix(parameters.OriginalText, out var id))
                 {
-                    await Send(_messageBuilder.BuildMessageByWellId(id));
+                    await Send(_wellsDataService.PrintFieldDataByIndex(id));
                 }
                 else
                 {
@@ -62,5 +66,6 @@ namespace WellModesBot.BotCommands
                 }
             }
         }
+
     }
 }
