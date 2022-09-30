@@ -19,8 +19,6 @@ namespace WellModesBot.BotCommands
 
         public override async Task Execute(CommandParameters parameters)
         {
-            var messageParts = parameters.OriginalText.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-
             Task Send(string text)
             {
                 return _botService.SendMessage(parameters.ChatId, new MessageInfo()
@@ -29,13 +27,13 @@ namespace WellModesBot.BotCommands
                 });
             }
 
-            if (messageParts.Length != 2)
+            if (parameters.MessageParts.Length != 2)
             {
                 await Send($"Неверный формат команды");
                 return;
             }
 
-            var indexString = messageParts[1];
+            var indexString = parameters.MessageParts[1];
 
             if (!int.TryParse(indexString, out var index))
             {

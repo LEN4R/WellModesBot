@@ -7,5 +7,6 @@
         public string SenderLastName { get; set; }
         public string SenderFirstName { get; set; }
         public string BotName { get; set; }
+        public string[] MessageParts { get; set; }
     }
 }

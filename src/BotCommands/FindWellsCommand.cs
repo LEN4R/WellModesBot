@@ -66,6 +66,5 @@ namespace WellModesBot.BotCommands
                 }
             }
         }
-
     }
 }

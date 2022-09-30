@@ -153,17 +153,30 @@ namespace WellModesBot
             commandText = commandText.ToLowerInvariant();
                
             var currentUser = await client.GetMeAsync();
+            var messageParts = originalText.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+            if (messageParts.Length == 0)
+            {
+                await SendMessage(msg.Chat.Id, new MessageInfo()
+                {
+                    Text = $"Неверный формат команды"
+                });
+                return;
+            }
 
             var parameters = new CommandParameters()
             {
                 OriginalText = originalText,
+                MessageParts = messageParts,
                 SenderLastName = msg.From.LastName,
                 SenderFirstName = msg.From.FirstName,
                 BotName = currentUser.FirstName,
                 ChatId = msg.Chat.Id,
             };
 
-            if (_commands.TryGetValue(commandText, out Command command))
+            var commandName = messageParts[0];
+
+            if (_commands.TryGetValue(commandName, out Command command))
                 await command.Execute(parameters);
             else
                 await _defaultCommand.Execute(parameters);
