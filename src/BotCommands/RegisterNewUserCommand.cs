@@ -5,7 +5,7 @@ namespace WellModesBot.BotCommands
 {
     public class RegisterNewUserCommand : Command
     {
-        public const string Key = "register";
+        public const string Key = "reg";
 
         private readonly UsersService _usersService;
 

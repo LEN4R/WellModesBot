@@ -68,16 +68,6 @@ namespace WellModesBot
             Console.ReadLine();
             cts.Cancel();
 
-            //Запись всех обновлении бота
-            /*try
-            {
-                var botUpdatesString = System.IO.File.ReadAllText(_settings.LogUsersFilePath);
-                botUpdate = JsonConvert.DeserializeObject<List<BotUpdate>>(botUpdatesString) ?? botUpdate;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Ошибка десериализации обновлении бота {ex}");
-            }*/
         }
 
 
@@ -97,7 +87,6 @@ namespace WellModesBot
                         text = update.Message.Text,
                         username = update.Message.Chat.Username + " " + update.Message.From.FirstName + " " + update.Message.From.LastName,
                     };
-
                     _logService.LogMessage(botUpdate);
                     return;
                 }
@@ -202,7 +191,6 @@ namespace WellModesBot
             return client.SendContactAsync(chatId, phoneNumber, firstName, lastName);
         }
     }
-
     struct BotUpdate
     {
         public string data;
