@@ -38,7 +38,7 @@ namespace WellModesBot
             _commands = new Dictionary<string, Command>() 
             {
                 { StartCommand.Key, new StartCommand(this) },
-                { GetInstructionCommand.Key, new GetInstructionCommand(this, settingsService) },
+                { GetInstructionCommand.Key, new GetInstructionCommand(this, settingsService) }, 
                 { RegisterNewUserCommand.Key, new RegisterNewUserCommand(this, usersService) },
                 { GetMyIDCommand.Key, new GetMyIDCommand(this) },
                 { GetContactsCommand.Key, new GetContactsCommand(this, settingsService) },
@@ -177,7 +177,7 @@ namespace WellModesBot
             {
                 await client.SendPhotoAsync(
                  chatId,
-                 photo: message.PhotoUrl,
+                 photo: InputFile.FromFileId(message.PhotoUrl),
                  caption: message.Text, parseMode: ParseMode.Html);
             }
             else
@@ -188,7 +188,7 @@ namespace WellModesBot
 
         public Task SendContact(long chatId, string phoneNumber, string firstName, string lastName)
         {
-            return client.SendContactAsync(chatId, phoneNumber, firstName, lastName);
+            return client.SendContactAsync(chatId, phoneNumber, firstName, lastName: lastName);
         }
     }
     struct BotUpdate

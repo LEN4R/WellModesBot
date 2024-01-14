@@ -100,7 +100,7 @@ namespace WellModesBot
                                                                        (44, OutputType.Default),  // Нст.
                                                                        (43, OutputType.Default),  // Руст. стат.
                                                                        (53, OutputType.Number),   // Q
-                                                                       (37, OutputType.Number),  // Pл.
+                                                                       (37, OutputType.Number),   // Pл.
                                                                        (33, OutputType.Default),  // Dшт.
                                                                        (116, OutputType.Default), // Потребная закачка
                                                                        })); //ТРНС

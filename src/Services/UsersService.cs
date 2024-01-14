@@ -18,7 +18,7 @@ namespace WellModesBot
             public string Name { get; set; }
             public UserRole Role { get; set; }
         }
-
+         
         public bool RegisterNewUser(long userId, string name = null, UserRole role = UserRole.@default)
         {
             var usersCollection = _database.GetCollection<User>("users");
