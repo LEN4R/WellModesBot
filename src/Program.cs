@@ -8,13 +8,12 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Telegram.Bot;
-using Telegram.Bot.Types.ReplyMarkups;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
+using Telegram.Bot.Types.ReplyMarkups;
 using Telegram.Bot.Exceptions;
-using Telegram.Bot.Extensions.Polling;
+using Telegram.Bot.Polling;
 using Newtonsoft.Json;
-using Telegram.Bot.Types.InputFiles;
 
 namespace WellModesBot
 {
@@ -28,18 +27,18 @@ namespace WellModesBot
     class Program
     {
         //private static string token = "5348869621:AAFeOl55384vMInbTORGsZwo9YVn-NoEv9w"; //WellModesBot
-        private static string token = System.IO.File.ReadAllText("wmbot.txt"); //WMBot
+        private static string token = System.IO.File.ReadAllText("wmbot.txt"); //id telegram bot
 
         private static readonly string InstructionText = $"\U00000031\U000020E3 Введите номер скважины, бот выводит режимные данные.\n" +
                                                          $"\U00000032\U000020E3 Если номер скважины совпадает в нескольких месторождении, бот предложит выбор скважин.\n\n" +
                                                          $"\U00002139 Для быстрого вывода данных возможен ввод: [номер скважины]+[начало названия месторождения]. \n\U000025B6 <b>Бот не привязан к регистру!</b>\U0001F4AA \n\n " +
                                                          $"\U000026A0 Бот не воспринимает '*', для получения информации скважин с индексом, неодходимо ввеcти <b>Индекс!</b>";
 
-        private static readonly string InfoText = $"\U0001F4C5 Дата создания бота: <b>20.04.2022</b>\n" +
-                                                  $"\U0001F4BB Версия бота: <b>1.1.2</b>\n" +
-                                                  $"\U0001F4BE Технологические режимы от <b>07.2022</b>";
+        private static readonly string InfoText = $"\U0001F4C5 Дата обновления бота: <b>10.08.2025</b>\n" +
+                                                  $"\U0001F4BB Версия бота: <b>1.2</b>\n";
 
-        private static TelegramBotClient client;
+        //private static TelegramBotClient client;
+        private static ITelegramBotClient client;
 
         static string logUsers = "logUsers.json";
         static string userList = @"users.txt";
@@ -49,20 +48,19 @@ namespace WellModesBot
         private static List<FieldInfo> _allFields;
         private static Dictionary<string, List<FieldInfo>> _allFieldsCombined;
 
-
         static void Main(string[] args)
         {
             GetData();
-            client = new TelegramBotClient(token); // Токен бота
+            var client = new TelegramBotClient(token); // Токен бота
             using var cts = new CancellationTokenSource(); // Токен отмены
             var receiverOptions = new ReceiverOptions { AllowedUpdates = new[] { UpdateType.CallbackQuery, UpdateType.Message } };  // Настройка получении обновлени
             client.StartReceiving(HandleUpdatesAsync, HandleErrorAsync, receiverOptions, cancellationToken: cts.Token); // Функция получении обновлении от Telegram
 
-            // Проверка на запуск
-            var me = client.GetMeAsync().Result;
-            Console.WriteLine($"Bot ID: {me.Id} \nBot Name: {me.FirstName}");
-            Console.ReadLine();
-            cts.Cancel();
+            var me = client.GetMe(); // Проверка на запуск
+            Console.WriteLine($"Bot ID: {me.Id}");
+            //Console.WriteLine($"Bot ID: {me.Id} \nBot Name: {me.FirstName}");
+            Console.ReadLine(); // Продолжайте запускать приложение до тех пор, пока не будет нажата клавиша
+            cts.Cancel(); // Отправьте запрос на отмену, чтобы остановить бота
 
             //Запись всех обновлении бота
             try
@@ -132,11 +130,11 @@ namespace WellModesBot
 
                 if (msg.Text == "/start")
                 {
-                    await client.SendPhotoAsync(
+                    await client.SendPhoto(
                     msg.Chat.Id,
                     photo: "https://raw.githubusercontent.com/LEN4R/WellModesBot/main/pic/logo.jpg",
-                    caption: $"\U0001F44B Здравствуйте {msg.From.LastName} {msg.From.FirstName}!\n\U0001F916 Меня зовут <u>{client.GetMeAsync().Result.FirstName}</u>, я телеграмм бот! ", parseMode: ParseMode.Html);
-                    await client.SendTextMessageAsync(msg.Chat.Id, text: $"\U00002139 Для начала работы <b>отправьте мне номер скважины</b>.", parseMode: ParseMode.Html);
+                    caption: $"\U0001F44B Здравствуйте {msg.From.LastName} {msg.From.FirstName}!\n\U0001F916 Меня зовут <u>{client.GetMe().Result.FirstName}</u>, я телеграмм бот! ", parseMode: ParseMode.Html);
+                    await client.SendMessage(msg.Chat.Id, text: $"\U00002139 Для начала работы <b>отправьте мне номер скважины</b>.", parseMode: ParseMode.Html);
                     return;
 
                 }
@@ -148,7 +146,7 @@ namespace WellModesBot
                         if (msg.Text == "log" || msg.Text == "Log")
                         {
                             await using Stream fileUserLog = System.IO.File.OpenRead(logUsers);
-                            Message message = await client.SendDocumentAsync(msg.Chat.Id, document: new InputOnlineFile(content: fileUserLog, fileName: "LogUsers.json"));
+                            Message message = await client.SendDocument(msg.Chat.Id, document: new InputFileStream(content: fileUserLog, fileName: "LogUsers.json"));
                             return;
                         }
 
@@ -162,15 +160,15 @@ namespace WellModesBot
                                 System.IO.File.AppendAllText(userList, appendText);
                             }
                             if (msg.Chat.Id != 947161854)
-                                await client.SendTextMessageAsync(msg.Chat.Id, text: $"\U00002795 Добавлен новый пользователь: {regUser[1]}", parseMode: ParseMode.Html);
-                            await client.SendTextMessageAsync(msg.Chat.Id = 947161854, text: $"\U00002795 Добавлен новый пользователь: {regUser[1]}", parseMode: ParseMode.Html);
+                                await client.SendMessage(msg.Chat.Id, text: $"\U00002795 Добавлен новый пользователь: {regUser[1]}", parseMode: ParseMode.Html);
+                            await client.SendMessage(msg.Chat.Id = 947161854, text: $"\U00002795 Добавлен новый пользователь: {regUser[1]}", parseMode: ParseMode.Html);
                             return;
                         }
 
                         if (msg.Text == "users" || msg.Text == "Users")
                         {
                             await using Stream fileUserLog = System.IO.File.OpenRead(userList);
-                            Message message = await client.SendDocumentAsync(msg.Chat.Id, document: new InputOnlineFile(content: fileUserLog, fileName: "UserList.txt"));
+                            Message message = await client.SendDocument(msg.Chat.Id, document: new InputFileStream(content: fileUserLog, fileName: "UserList.txt"));
                             return;
                         }
                     }
@@ -182,11 +180,11 @@ namespace WellModesBot
                             {
                                 new []{InlineKeyboardButton.WithCallbackData("\U00002755 Инструкция по боту", "instruction")},
                                 new []{InlineKeyboardButton.WithCallbackData("\U00002139 Информация по боту", "info")},
-                                new []
-                                {
-                                    InlineKeyboardButton.WithUrl("\U0000270D Обратная связь","https://t.me/len4r"),
-                                    InlineKeyboardButton.WithCallbackData("\U00002709 Контакты","contact")
-                                }
+                                //new []
+                                //{
+                                //    InlineKeyboardButton.WithUrl("\U0000270D Обратная связь","https://t.me/len4r"),
+                                    //InlineKeyboardButton.WithCallbackData("\U00002709 Контакты","contact")
+                                //}
                             });
                         await SendMessage(msg.Chat.Id, "\U00002705 Пожалуйста, выберите опцию:", markup: markup);
                         return;
@@ -195,7 +193,7 @@ namespace WellModesBot
                 }
                 else
                 {
-                    await client.SendTextMessageAsync(msg.Chat.Id, text: $"\U0000274C <b>ОШИБКА!</b> У вас нет доступа!", parseMode: ParseMode.Html, replyMarkup: new InlineKeyboardMarkup(new[] { new[] { InlineKeyboardButton.WithCallbackData("\U0001F194 Узнать Telegram ID", "telegramID") } }));
+                    await client.SendMessage(msg.Chat.Id, text: $"\U0000274C <b>ОШИБКА!</b> У вас нет доступа!", parseMode: ParseMode.Html, replyMarkup: new InlineKeyboardMarkup(new[] { new[] { InlineKeyboardButton.WithCallbackData("\U0001F194 Узнать Telegram ID", "telegramID") } }));
                 }
             }
 
@@ -205,25 +203,25 @@ namespace WellModesBot
                 switch (data)
                 {
                     case "instruction":
-                        await client.SendPhotoAsync(callbackQuery.Message.Chat.Id,
+                        await client.SendPhoto(callbackQuery.Message.Chat.Id,
                         photo: "https://raw.githubusercontent.com/LEN4R/WellModesBot/main/pic/pic_instruction.jpg",
                         caption: InstructionText,
                         parseMode: ParseMode.Html);
                         break;
                     case "info":
-                        await client.SendPhotoAsync(callbackQuery.Message.Chat.Id,
+                        await client.SendPhoto(callbackQuery.Message.Chat.Id,
                         photo: "https://raw.githubusercontent.com/LEN4R/WellModesBot/main/pic/pic_info.jpg",
                         caption: InfoText,
                         parseMode: ParseMode.Html);
                         break;
-                    case "contact":
-                        await сlient.SendContactAsync(callbackQuery.Message.Chat.Id,
-                        phoneNumber: "+79678888663",
-                        firstName: "Галиев",
-                        lastName: "Ленар");
-                        break;
+                    //case "contact":
+                    //    await сlient.SendContact(callbackQuery.Message.Chat.Id,
+                    //    phoneNumber: "+79678888663",
+                    //    firstName: "Галиев",
+                    //    lastName: "Ленар");
+                    //    break;
                     case "telegramID":
-                        await сlient.SendTextMessageAsync(callbackQuery.Message.Chat.Id,
+                        await сlient.SendMessage(callbackQuery.Message.Chat.Id,
                         text: $"{callbackQuery.Message.Chat.Id}",
                         parseMode: ParseMode.Html);
                         break;
@@ -290,7 +288,11 @@ namespace WellModesBot
 
         private static async Task SendMessage(long chatId, string message, int replyMessageId = 0, InlineKeyboardMarkup markup = null)
         {
-            await client.SendTextMessageAsync(chatId: chatId, text: message, replyToMessageId: replyMessageId, replyMarkup: markup);
+            await client.SendTextMessageAsync(
+               chatId: chatId,
+               text: message,
+               replyToMessageId: replyMessageId,
+               replyMarkup: markup);
         }
 
         private static void PrintFieldDataByColumnIndexes(FieldInfo field, StringBuilder message, WorksheetInfo info)
@@ -400,12 +402,13 @@ namespace WellModesBot
                                                                        (44, OutputType.Default),  // Нст.
                                                                        (43, OutputType.Default),  // Руст. стат.
                                                                        (53, OutputType.Number),   // Q
-                                                                       (37, OutputType.Number),  // Pл.
+                                                                       (37, OutputType.Number),   // Pл.
                                                                        (33, OutputType.Default),  // Dшт.
                                                                        (116, OutputType.Default), // Потребная закачка
                                                                        })); //ТРНС
 
-                _worksheetsList = worksheetsList;                _allFields = worksheetsList.SelectMany(x => x.Fields).ToList();
+                _worksheetsList = worksheetsList;                
+                _allFields = worksheetsList.SelectMany(x => x.Fields).ToList();
                 _allFieldsCombined = worksheetsList.SelectMany(x => x.FieldsCombined)
                     .GroupBy(x => x.Key)
                     .Select(x => (x.Key, x.SelectMany(y => y.Value)))

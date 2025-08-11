@@ -47,7 +47,7 @@ namespace WellModesBot
 
         private void LoadWellsInfo()
         {
-            //var path = Directory.EnumerateFiles(Environment.CurrentDirectory).FirstOrDefault(x => x.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase));
+            //var path = Directory.EnumerateFiles(Environment.CurrentDirectory).FirstOrDefault(x => x.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase)); // любое название файла Excel
             var path = @"Files/Info.xlsx";
             Console.WriteLine($"Файл загружен:{path}");
 
