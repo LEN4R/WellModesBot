@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json;
+﻿using DotNetEnv;
+using Newtonsoft.Json;
 using OfficeOpenXml;
 using OfficeOpenXml.Drawing.Chart;
 using System;
@@ -27,15 +28,24 @@ namespace WellModesBot
 
     class Program
     {
-        private static string token = File.ReadAllText("wmbot.txt");
-        private static readonly string InstructionText = $"\U00000031\U000020E3 Введите номер скважины, бот выводит режимные данные.\n" +
-                                                         $"\U00000032\U000020E3 Если номер скважины совпадает в нескольких месторождении, бот предложит выбор скважин.\n\n" +
-                                                         $"\U00002139 Для быстрого вывода данных возможен ввод: [номер скважины]+[начало названия месторождения]. \n\U000025B6 " +
-                                                         $"<b>Бот не привязан к регистру!</b>\U0001F4AA \n\n " +
-                                                         $"\U000026A0 Бот не воспринимает '*', для получения информации скважин с индексом, необходимо ввести <b>Индекс!</b>";
+        // === Константы ===
+        private const string botVersion = "1.0.10";
+        //private static string token = File.ReadAllText("wmbot.txt");
+        private static string token;
 
-        private static readonly string InfoText =        $"\U0001F4C5 Дата обновления бота: <b>10.08.2025</b>\n" +
-                                                         $"\U0001F4BB Версия бота: <b>1.2</b>\n";
+        // === Тексты ===
+        private static string InstructionText =>         "\U00000031\U000020E3 Введите номер скважины...\n" +
+                                                         "ℹ️ Для быстрого поиска можно ввести [номер]+[месторождение].";
+        private static string InfoText
+        {
+            get
+            {
+                LoadInfoDate(); // Обновляем дату перед отображением
+                return "\U0001F4C5 Дата обновления бота: <b>27.08.2025</b>\n" +
+                       $"\U0001F4BB Версия бота: <b>{botVersion}</b>\n" +
+                       $"📅 Дата загрузки ТР: <b>{_lastInfoFileDate}</b>";
+            }
+        }
 
         private static ITelegramBotClient client;
 
@@ -43,14 +53,34 @@ namespace WellModesBot
         static string logUsers = Path.Combine(AppContext.BaseDirectory, "LogUsers.json");
         static string userList = @"users.txt";
         static string rootList = @"root.txt";
+        private static readonly string infoDateFile = Path.Combine(AppContext.BaseDirectory, "infodate.txt");           // Путь к файлу с датой
+        private static string _lastInfoFileDate = "неизвестно";                                                         // Текущая дата последнего обновления Info.xlsx
         static List<BotUpdate> botUpdate = new List<BotUpdate>();
         private static List<WorksheetInfo> _worksheetsList;
         private static List<FieldInfo> _allFields;
         private static Dictionary<string, List<FieldInfo>> _allFieldsCombined;
-        string god = "947161854";
+
 
         static void Main(string[] args)
         {
+            // Загружаем переменные окружения из файла .env
+            try
+            {
+                Env.Load(Path.Combine(AppContext.BaseDirectory, "token.env"));
+            }
+            catch
+            {
+                Console.WriteLine("Не удалось загрузить token.env");
+            }
+
+            // Читаем токен
+            token = Environment.GetEnvironmentVariable("TOKEN");
+            if (string.IsNullOrWhiteSpace(token))
+            {
+                Console.WriteLine("Ошибка: TOKEN не найден в переменных окружения!");
+                return;
+            }
+
             GetData();
             // ====== ИНИЦИАЛИЗАЦИЯ БОТА ======
             client = new TelegramBotClient(token);
@@ -60,14 +90,13 @@ namespace WellModesBot
             {
                 AllowedUpdates = [UpdateType.CallbackQuery, UpdateType.Message]
             };
-
             client.StartReceiving(HandleUpdatesAsync, HandleErrorAsync, receiverOptions, cancellationToken: cts.Token);
 
             // Проверка на запуск
-            var me = client.GetMe().Result;                                                         // Токен бота
-            Console.WriteLine($"Bot ID: {me.Id} \nName: {me.FirstName}");                           // Токен отмены
-            Console.ReadLine();                                                                     // Продолжайте запускать приложение до тех пор, пока не будет нажата клавиша
-            cts.Cancel();                                                                           // Отправьте запрос на отмену, чтобы остановить бота
+            var me = client.GetMe().Result;                                                         
+            Console.WriteLine($"Bot ID: {me.Id}\nName: {me.FirstName}");                           
+            Console.ReadLine();
+            cts.Cancel();                                                                           
 
             //Запись всех обновлении бота
             try
@@ -81,14 +110,22 @@ namespace WellModesBot
             }
         }
 
+        // Загружаем дату последней загрузки, если файл существует
+        private static void LoadInfoDate()
+        {
+            if (File.Exists(infoDateFile))
+                _lastInfoFileDate = File.ReadAllText(infoDateFile).Trim();
+
+            if (string.IsNullOrWhiteSpace(_lastInfoFileDate))
+            {
+                _lastInfoFileDate = DateTime.Now.ToString("dd.MM.yyyy");
+                File.WriteAllText(infoDateFile, _lastInfoFileDate);
+            }
+        }
+
         static async Task SendMessage(ITelegramBotClient botClient, long chatId, string text, ParseMode parseMode = ParseMode.Html, ReplyMarkup markup = null)
         {
-            await botClient.SendMessage(
-                chatId: chatId,
-                text: text,
-                parseMode: parseMode,
-                replyMarkup: markup
-            );
+            await botClient.SendMessage(chatId: chatId, text: text, parseMode: parseMode, replyMarkup: markup);
         }
 
         // Метод обработки обновление бота
@@ -140,7 +177,7 @@ namespace WellModesBot
 
                     var approveButton = new InlineKeyboardMarkup(new[]
                     {
-            new[] { InlineKeyboardButton.WithCallbackData("✅ Добавить пользователя", $"reg_{callback.From.Id}") }});
+                    new[] { InlineKeyboardButton.WithCallbackData("✅ Добавить пользователя", $"reg_{callback.From.Id}") }});
 
                     foreach (var rootUserId in listOfRoot)
                     {
@@ -176,7 +213,51 @@ namespace WellModesBot
                 return;
             }
 
+            // === Обработка загрузки файла от админа ===
+            if (update.Type == UpdateType.Message && update.Message?.Document != null)
+            {
+                var doc = update.Message.Document;
 
+                if (listOfRoot.Contains(update.Message.Chat.Id.ToString()))
+                {
+                    if (doc.FileName.Equals("Info.xlsx", StringComparison.OrdinalIgnoreCase))
+                    {
+                        try
+                        {
+                            var file = await botClient.GetFile(doc.FileId);
+                            var filePath = Path.Combine(AppContext.BaseDirectory, "Info.xlsx");
+
+                            using (var saveStream = new FileStream(filePath, FileMode.Create, FileAccess.Write))
+                            {
+                                await botClient.DownloadFile(file.FilePath, saveStream);
+                            }
+                            await SendMessage(botClient, update.Message.Chat.Id, "✅ Файл Info.xlsx успешно заменён.");
+
+                            // Перезагружаем данные
+                            GetData();
+
+                            // Обновляем дату загрузки
+                            _lastInfoFileDate = DateTime.Now.ToString("dd.MM.yyyy HH:mm");
+                            File.WriteAllText(infoDateFile, _lastInfoFileDate);
+
+                            await SendMessage(botClient, update.Message.Chat.Id, "♻ Данные из нового файла загружены.");
+                        }
+                        catch (Exception ex)
+                        {
+                            await SendMessage(botClient, update.Message.Chat.Id, $"⛔ Ошибка при замене файла: {ex.Message}");
+                        }
+                    }
+                    else
+                    {
+                        await SendMessage(botClient, update.Message.Chat.Id, "⚠ Файл должен называться Info.xlsx.");
+                    }
+                }
+                else
+                {
+                    await SendMessage(botClient, update.Message.Chat.Id, "⛔ У вас нет прав для замены файла.");
+                }
+                return;
+            }
 
             // === Обработка текстовых сообщений ===
             if (update.Type == UpdateType.Message && update.Message?.Text != null)
@@ -189,7 +270,7 @@ namespace WellModesBot
                     await botClient.SendPhoto(
                         chatId: msg.Chat.Id,
                         photo: "https://raw.githubusercontent.com/LEN4R/WellModesBot/main/pic/logo.jpg",
-                        caption: $"\U0001F44B Здравствуйте {msg.From.LastName} {msg.From.FirstName}!\n\U0001F916 Меня зовут <u>{(await botClient.GetMe()).FirstName}</u>, я телеграмм бот!",
+                        caption: $"\U0001F44B Здравствуйте {msg.From.LastName} {msg.From.FirstName}!\n\U0001F916 Меня зовут <u>{(await botClient.GetMe()).FirstName}</u>!",
                         parseMode: ParseMode.Html,
                         cancellationToken: cancellationToken
                     );
@@ -204,7 +285,7 @@ namespace WellModesBot
                     [
                         [InlineKeyboardButton.WithCallbackData("\U0001F194 Запросить доступ?", "regNewUser")]
                     ]);
-                    await SendMessage(botClient, msg.Chat.Id, "\U0000274C <b>ОШИБКА!</b> У вас нет доступа!", ParseMode.Html, keyboard);
+                    await SendMessage(botClient, msg.Chat.Id, "\U0000274C <b>У вас нет доступа!</b>", ParseMode.Html, keyboard);
                     return;
                 }
 
@@ -297,6 +378,8 @@ namespace WellModesBot
             }
         }
 
+
+        // === Callback-кнопки ===
         private static async Task HandleCallbackQuery(CallbackQuery callbackQuery)
         {
             var data = callbackQuery.Data;
@@ -388,12 +471,7 @@ namespace WellModesBot
             }
 
             // Отправляем новое сообщение
-            var sentMessage = await client.SendMessage(
-                chatId: chatId,
-                text: message,
-                parseMode: parseMode,
-                replyMarkup: markup
-            );
+            var sentMessage = await client.SendMessage(chatId: chatId, text: message, parseMode: parseMode, replyMarkup: markup);
 
             // Сохраняем ID нового сообщения
             messageHistory[chatId].Add(sentMessage.MessageId);
@@ -465,7 +543,6 @@ namespace WellModesBot
             // Работа с Excel
             // var path = Directory.EnumerateFiles(Environment.CurrentDirectory).FirstOrDefault(x => x.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase));
             var path = @"Info.xlsx";
-            Console.WriteLine($"Файл загружен:{path}");
             ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
 
             using (var xlPackage = new ExcelPackage(new FileInfo(path)))
