@@ -398,3 +398,6 @@ FodyWeavers.xsd
 *.sln.iml
 
 token.env
+Info.xlsx
+root.txt
+users.txt
