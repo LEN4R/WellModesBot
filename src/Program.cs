@@ -63,7 +63,7 @@ namespace WellModesBot
 
         static void Main(string[] args)
         {
-            // Загружаем переменные окружения из файла .env
+            //Загружаем переменные окружения из файла.env
             try
             {
                 Env.Load(Path.Combine(AppContext.BaseDirectory, "token.env"));
@@ -598,8 +598,12 @@ namespace WellModesBot
                                                                            (33, OutputType.Default),    // Dшт.
                                                                            (116, OutputType.Default),   // Потребная закачка
                     })); //ТРНС
+                    //worksheetsList.Add(ReadWorksheet(xlPackage, 2, new[]  { (28, OutputType.Default),    // Месторождение
+                    //                                                        (32, OutputType.Default),    // № скв
 
-                    _worksheetsList = worksheetsList;
+                    //})); //ТРВЗ
+
+                _worksheetsList = worksheetsList;
                     _allFields = worksheetsList.SelectMany(x => x.Fields).ToList();
                     _allFieldsCombined = worksheetsList.SelectMany(x => x.FieldsCombined)
                     .GroupBy(x => x.Key)
@@ -614,6 +618,7 @@ namespace WellModesBot
             var worksheetFieldsCombined = new Dictionary<string, List<FieldInfo>>();                    // быстрый поиск по номеру скважины (и его обрезанным вариантам)
             var columnNames = new List<string>();                                                       // названия колонок
             var columnMetrics = new List<string>();                                                     // единицы измерения для колонок
+            
             // Получаем доступ к нужному листу
             var myWorksheet = xlPackage.Workbook.Worksheets[worksheetIndex];
             var totalRows = myWorksheet.Dimension.End.Row;
